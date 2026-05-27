@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+instance/
+app/static/uploads/militares/*
+!app/static/uploads/militares/.gitkeep
+.DS_Store
+*.log

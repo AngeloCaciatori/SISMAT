@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Fichas de Prateleira — Impressão</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Times New Roman', serif;
+    background: #fff;
+    padding: 12mm;
+    color: #000;
+  }
+  .topo-tela {
+    background: #1e3a5f; color: #fff;
+    padding: 10px 16px; margin: -12mm -12mm 16px -12mm;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  .topo-tela .btn-imprimir {
+    background: #c9a227; color: #1e3a5f; border: none; padding: 6px 16px;
+    border-radius: 4px; font-weight: bold; cursor: pointer;
+  }
+  .topo-tela .btn-fechar {
+    background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.6);
+    padding: 6px 16px; border-radius: 4px; cursor: pointer;
+  }
+
+  .ficha {
+    border: 2px solid #000; margin-bottom: 6mm;
+    page-break-inside: avoid; break-inside: avoid;
+  }
+  .ficha .row1 {
+    display: grid; grid-template-columns: 1.4fr 1fr 1fr;
+    border-bottom: 1px solid #000;
+  }
+  .ficha .row1 .titulo {
+    font-weight: bold; font-size: 14pt; padding: 6px 10px;
+    border-right: 1px solid #000; background: #f0f0f0;
+  }
+  .ficha .row1 .info {
+    padding: 6px 10px; font-size: 11pt; display: flex;
+    justify-content: space-between; align-items: center;
+  }
+  .ficha .row1 .info.com-borda { border-right: 1px solid #000; }
+  .ficha .row1 .valor-num { font-weight: bold; font-size: 14pt; }
+
+  .ficha .row2 {
+    display: grid; grid-template-columns: 1.4fr 1fr 1fr;
+  }
+  .ficha .row2 .col {
+    padding: 8px 10px; font-size: 11pt;
+    display: flex; align-items: center;
+  }
+  .ficha .row2 .col.com-borda { border-right: 1px solid #000; }
+  .ficha .row2 .tipo-rotulo {
+    border: 1px solid #000; padding: 3px 12px; font-size: 10pt; font-weight: bold;
+  }
+  .ficha .row2 .contagem-input {
+    border: 1px solid #000; flex: 1; height: 22px; margin-left: 6px;
+  }
+
+  .ficha .row3 {
+    border-top: 1px solid #000; padding: 12px 10px;
+    font-size: 16pt; font-weight: bold;
+    min-height: 36px;
+  }
+
+  .vazio {
+    text-align: center; padding: 30px; color: #888;
+  }
+
+  @media print {
+    body { padding: 8mm; }
+    .topo-tela { display: none !important; }
+    .ficha { margin-bottom: 4mm; }
+  }
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+</style>
+</head>
+<body>
+
+<div class="topo-tela">
+  <div>
+    <strong>SISMAT — Fichas de Prateleira ({{ materiais|length }})</strong>
+    <span style="opacity:0.85; font-size:13px; margin-left:8px;">Use Ctrl+P ou o botão →</span>
+  </div>
+  <div style="display:flex; gap:8px;">
+    <button class="btn-imprimir" onclick="window.print()">🖨 Imprimir</button>
+    <button class="btn-fechar" onclick="window.close()">Fechar</button>
+  </div>
+</div>
+
+{% for m in materiais %}
+<div class="ficha">
+  <div class="row1">
+    <div class="titulo">FICHA DE PRATELEIRA</div>
+    <div class="info com-borda">
+      <span>Prateleira:</span>
+      <span class="valor-num">{{ m.prateleira or '—' }}</span>
+    </div>
+    <div class="info">
+      <span>SISCOFIS:</span>
+      <span class="valor-num" style="font-size:11pt; max-width:55%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ m.ficha_siscofis or '—' }}</span>
+    </div>
+  </div>
+  <div class="row2">
+    <div class="col com-borda">
+      <span class="tipo-rotulo">{{ m.tipo }}</span>
+    </div>
+    <div class="col com-borda">
+      QTD ESPERADA: <strong style="margin-left:4px;">{{ m.qnt_siscofis or 0 }}</strong>
+    </div>
+    <div class="col">
+      Contagem: <span class="contagem-input"></span>
+    </div>
+  </div>
+  <div class="row3">{{ m.nomenclatura }}</div>
+</div>
+{% else %}
+<div class="vazio">Nenhuma ficha selecionada.</div>
+{% endfor %}
+
+<script>
+  // Pequeno delay e dispara o diálogo de impressão
+  setTimeout(function() { window.print(); }, 350);
+</script>
+</body>
+</html>

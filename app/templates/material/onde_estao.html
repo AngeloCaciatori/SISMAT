@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Onde Estão os Materiais</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Times New Roman', serif;
+    background: #fff; padding: 12mm; color: #000; font-size: 10.5pt;
+  }
+
+  /* ── Barra de tela (some na impressão) ── */
+  .topo-tela {
+    background: #1e3a5f; color: #fff;
+    padding: 10px 16px; margin: -12mm -12mm 14px -12mm;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  .topo-tela .btn-imprimir {
+    background: #c9a227; color: #1e3a5f; border: none; padding: 6px 16px;
+    border-radius: 4px; font-weight: bold; cursor: pointer; font-family: inherit;
+  }
+  .topo-tela .btn-fechar {
+    background: transparent; color: #fff;
+    border: 1px solid rgba(255,255,255,0.6);
+    padding: 6px 16px; border-radius: 4px; cursor: pointer; font-family: inherit;
+  }
+
+  /* ── Cabeçalho institucional ── */
+  .cabecalho {
+    text-align: center; border-bottom: 2px solid #000;
+    padding-bottom: 10px; margin-bottom: 16px;
+  }
+  .cabecalho img { height: 52px; margin-bottom: 6px; display: block; margin-left: auto; margin-right: auto; }
+  .cabecalho h1 { font-size: 13pt; font-weight: bold; letter-spacing: .04em; margin-bottom: 2px; }
+  .cabecalho h2 { font-size: 16pt; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
+  .cabecalho .subtitulo { font-size: 9.5pt; color: #444; }
+
+  /* ── Info bar ── */
+  .info-bar {
+    display: flex; justify-content: space-between;
+    border: 1px solid #000; padding: 5px 10px;
+    margin-bottom: 16px; font-size: 9.5pt;
+  }
+
+  /* ── Grupos por tipo ── */
+  .grupo-tipo {
+    font-size: 14pt; font-weight: bold; text-transform: uppercase;
+    margin-top: 18px; margin-bottom: 8px;
+    padding-bottom: 3px; border-bottom: 2px solid #000;
+    letter-spacing: .04em;
+  }
+
+  /* ── Bloco de cada material ── */
+  .bloco-material { margin-bottom: 14px; }
+  .material-header {
+    display: flex; align-items: baseline; gap: 16px;
+    margin-bottom: 4px;
+  }
+  .material-qtd {
+    font-size: 18pt; font-weight: bold;
+    min-width: 36px; text-align: right; line-height: 1;
+  }
+  .material-nome {
+    font-size: 12pt; font-weight: bold;
+    text-transform: uppercase;
+  }
+  .material-livre {
+    font-size: 9pt; color: #555; margin-left: auto;
+  }
+
+  /* ── Linhas de militares ── */
+  .linha-militar {
+    display: flex; align-items: baseline;
+    padding: 2px 0 2px 16px; border-bottom: 1px dotted #ccc;
+    font-size: 10pt;
+  }
+  .linha-militar .grad {
+    min-width: 90px; text-transform: uppercase; font-size: 9.5pt;
+  }
+  .linha-militar .nome {
+    flex: 1; text-transform: uppercase;
+  }
+  .linha-militar .qtd-item {
+    min-width: 24px; text-align: right; font-weight: bold;
+  }
+  .linha-militar .cautela-num {
+    min-width: 130px; text-align: right; font-size: 9pt; color: #555;
+  }
+  .sem-cautelas {
+    padding: 4px 16px; font-size: 9.5pt;
+    color: #555; font-style: italic;
+  }
+
+  /* ── Rodapé ── */
+  .rodape {
+    margin-top: 28px; display: flex;
+    justify-content: space-around;
+    page-break-inside: avoid;
+  }
+  .rodape .assinatura {
+    border-top: 1px solid #000; width: 42%;
+    text-align: center; padding-top: 4px; font-size: 9.5pt;
+  }
+
+  @media print {
+    body { padding: 8mm; }
+    .topo-tela { display: none !important; }
+    @page { size: A4; margin: 10mm; }
+    .bloco-material { page-break-inside: avoid; }
+    thead { display: table-header-group; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Barra de tela -->
+<div class="topo-tela">
+  <strong>SISMAT — Onde Estão os Materiais ({{ dados|length }} item(ns))</strong>
+  <div style="display:flex; gap:8px;">
+    <button class="btn-imprimir" onclick="window.print()">&#128424; Imprimir</button>
+    <button class="btn-fechar"   onclick="window.close()">Fechar</button>
+  </div>
+</div>
+
+<!-- Cabeçalho institucional -->
+<div class="cabecalho">
+  <img src="{{ url_for('static', filename='img/BrasaoSISMAT.png') }}" alt="Brasão">
+  <h1>{{ NOME_INSTITUICAO or 'BATERIA DE COMANDO DA AD/5' }}</h1>
+  <h2>Onde Estão os Materiais</h2>
+  <div class="subtitulo">Reserva de Material — Subtenência &nbsp;·&nbsp; Cautelas ativas em {{ now.strftime('%d/%m/%Y') }}</div>
+</div>
+
+<!-- Info bar -->
+<div class="info-bar">
+  <span><strong>Operador:</strong> {{ operador }}</span>
+  <span><strong>Itens consultados:</strong> {{ dados|length }}</span>
+  <span><strong>Data:</strong> {{ now.strftime('%d/%m/%Y %H:%M') }}</span>
+</div>
+
+<!-- Conteúdo agrupado por tipo -->
+{% set ns = namespace(tipo_atual=None) %}
+{% for d in dados %}
+  {% if d.material.tipo != ns.tipo_atual %}
+    {% set ns.tipo_atual = d.material.tipo %}
+    <div class="grupo-tipo">{{ d.material.tipo }}</div>
+  {% endif %}
+
+  <div class="bloco-material">
+    <div class="material-header">
+      <span class="material-qtd">{{ d.total_cautelado }}</span>
+      <span class="material-nome">{{ d.material.nomenclatura }}</span>
+      <span class="material-livre">
+        {% set livre = (d.material.qnt_siscofis or 0) - d.total_cautelado %}
+        {% if livre > 0 %}{{ livre }} na reserva{% else %}sem estoque livre{% endif %}
+      </span>
+    </div>
+
+    {% if d.itens %}
+      {% for item in d.itens %}
+        {% set c = item.cautela %}
+        <div class="linha-militar">
+          <span class="grad">
+            {% if c.militar %}{{ c.militar.graduacao or '—' }}
+            {% elif c.recebedor_grad %}{{ c.recebedor_grad }}
+            {% else %}EXT{% endif %}
+          </span>
+          <span class="nome">
+            {% if c.militar %}{{ c.militar.nome_guerra or c.militar.nome_completo or '—' }}
+            {% elif c.recebedor_nome_guerra %}{{ c.recebedor_nome_guerra }}
+            {% elif c.recebedor_nome_completo %}{{ c.recebedor_nome_completo }}
+            {% else %}{{ c.om_externa_nome or '—' }}{% endif %}
+          </span>
+          <span class="qtd-item">{{ item.quantidade }}</span>
+          <span class="cautela-num">Caut. {{ c.numero }}</span>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="sem-cautelas">Nenhuma cautela ativa — item disponível na reserva.</div>
+    {% endif %}
+  </div>
+{% else %}
+  <p style="text-align:center; padding:20px; color:#888;">Nenhum material encontrado.</p>
+{% endfor %}
+
+<!-- Rodapé com assinaturas -->
+<div class="rodape">
+  <div class="assinatura">{{ operador }}<br>(Operador da Reserva)</div>
+  <div class="assinatura">______________________________<br>(Visto da Subtenência)</div>
+</div>
+
+<script>
+  /* Injeta data/hora via JS para estar sempre atualizada na tela */
+</script>
+</body>
+</html>

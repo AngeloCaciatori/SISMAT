@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>{{ modelo.nome }}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Times New Roman', serif;
+    background: #fff; padding: 12mm; color: #000; font-size: 11pt;
+  }
+  .topo-tela {
+    background: #1e3a5f; color: #fff;
+    padding: 10px 16px; margin: -12mm -12mm 12px -12mm;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Segoe UI', sans-serif; gap: 12px;
+  }
+  .topo-info { display: flex; flex-direction: column; }
+  .topo-info strong { font-size: 14px; }
+  .topo-info span   { font-size: 11px; opacity: 0.8; margin-top: 2px; }
+  .topo-acoes { display: flex; gap: 8px; align-items: center; }
+  .btn-imprimir {
+    background: #c9a227; color: #1e3a5f; border: none; padding: 7px 18px;
+    border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 13px;
+    font-family: inherit;
+  }
+  .btn-imprimir:hover { background: #b8911e; }
+  .btn-fechar {
+    background: transparent; color: #fff;
+    border: 1px solid rgba(255,255,255,0.5);
+    padding: 7px 14px; border-radius: 5px; cursor: pointer; font-size: 13px;
+    font-family: inherit;
+  }
+  .btn-fechar:hover { background: rgba(255,255,255,0.1); }
+
+  /* Conteúdo renderizado do modelo */
+  .conteudo-doc {
+    line-height: 1.6;
+  }
+  .conteudo-doc h1 { font-size: 16pt; text-align: center; margin: 12px 0 6px; }
+  .conteudo-doc h2 { font-size: 14pt; text-align: center; margin: 10px 0 4px; }
+  .conteudo-doc h3 { font-size: 12pt; margin: 8px 0 4px; }
+  .conteudo-doc p  { margin: 6px 0; }
+  .conteudo-doc ul, .conteudo-doc ol { margin: 6px 0 6px 20px; }
+  .conteudo-doc table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  .conteudo-doc th, .conteudo-doc td { border: 1px solid #000; padding: 4px 8px; }
+  .conteudo-doc hr { border: none; border-top: 1px solid #666; margin: 12px 0; }
+
+  @media print {
+    body { padding: 8mm; }
+    .topo-tela { display: none !important; }
+    @page { size: A4; margin: 12mm; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topo-tela">
+  <div class="topo-info">
+    <strong>&#128196; {{ modelo.nome }}</strong>
+    <span>SISMAT — Documentação &nbsp;·&nbsp; Gerado em {{ now.strftime('%d/%m/%Y %H:%M') if now else '' }}</span>
+  </div>
+  <div class="topo-acoes">
+    <button class="btn-imprimir" onclick="window.print()">&#128424; Imprimir / Salvar PDF</button>
+    <button class="btn-fechar"   onclick="window.close()">Fechar</button>
+  </div>
+</div>
+
+<div class="conteudo-doc" id="conteudo">
+  {{ conteudo_renderizado | safe }}
+</div>
+
+<script>
+  /* Auto-print pode ser ativado via ?autoprint=1 */
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('autoprint') === '1') {
+    setTimeout(function() { window.print(); }, 400);
+  }
+</script>
+</body>
+</html>

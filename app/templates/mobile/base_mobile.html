@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>{% block title %}SISMAT{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+
+{% if current_user.is_authenticated %}
+
+  {# ═══ TOPBAR ═══ #}
+  <header class="topbar-mobile">
+    <a class="topbar-back" href="{% block back_url %}{{ url_for('main.dashboard') }}{% endblock %}" title="Voltar">&#8592;</a>
+    <span class="topbar-title">{% block page_title %}SISMAT{% endblock %}</span>
+    <a class="topbar-action" href="{{ url_for('main.alternar_view') }}" title="Versão desktop">&#128187;</a>
+  </header>
+
+  {# ═══ FLASH MESSAGES ═══ #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="flash-mobile {{ category if category in ['success','error','warning'] else 'success' }}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {# ═══ CONTEÚDO ═══ #}
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  {# ═══ BOTTOM NAV ═══ #}
+  <nav class="bottom-nav">
+    <a href="{{ url_for('main.dashboard') }}" class="{% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+      <span class="nav-icon">&#127968;</span>
+      <span class="nav-label">Painel</span>
+    </a>
+    <a href="{{ url_for('efetivo.lista') }}" class="{% if request.blueprint == 'efetivo' %}active{% endif %}">
+      <span class="nav-icon">&#128101;</span>
+      <span class="nav-label">Efetivo</span>
+    </a>
+    <a href="{{ url_for('material.lista') }}" class="{% if request.blueprint == 'material' %}active{% endif %}">
+      <span class="nav-icon">&#128230;</span>
+      <span class="nav-label">Material</span>
+    </a>
+    <a href="{{ url_for('cautelas.lista') }}" class="{% if request.blueprint == 'cautelas' %}active{% endif %}">
+      <span class="nav-icon">&#128203;</span>
+      <span class="nav-label">Cautelas</span>
+    </a>
+    <a href="{{ url_for('main.mais') }}" class="{% if request.endpoint == 'main.mais' %}active{% endif %}">
+      <span class="nav-icon">&#8942;</span>
+      <span class="nav-label">Mais</span>
+    </a>
+  </nav>
+
+{% else %}
+  {% block content_unauth %}{% endblock %}
+{% endif %}
+
+{% block scripts %}{% endblock %}
+
+<script>
+/* Accordion simples */
+document.querySelectorAll('.accordion-header').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    this.classList.toggle('open');
+    var body = this.nextElementSibling;
+    if (body) body.classList.toggle('open');
+  });
+});
+</script>
+
+</body>
+</html>

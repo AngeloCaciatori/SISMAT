@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recuperar Senha — SISMAT</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sismat.css') }}">
+</head>
+<body>
+  <div class="login-screen">
+    <div class="login-card">
+
+      <!-- Brasão -->
+      <div class="login-brasao-wrap">
+        <img src="{{ url_for('static', filename='img/BrasaoSISMAT.png') }}"
+             alt="Brasão SISMAT" class="login-brasao">
+      </div>
+
+      <h1 style="font-size:21px;">REDEFINIÇÃO DE SENHA</h1>
+      <div class="subtitulo">Solicite reset ao administrador</div>
+      <div class="instituicao">{{ NOME_INSTITUICAO }}</div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="flash flash-{{ category if category in ['success','error','warning'] else 'success' }}">
+              {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <div class="info-box">
+        <strong>Como funciona:</strong> sua solicitação fica registrada. O administrador
+        verifica, gera uma senha temporária e a entrega <strong>presencialmente</strong>.
+      </div>
+
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label>CPF cadastrado</label>
+          <input type="text" name="cpf" maxlength="14" required>
+        </div>
+        <div class="form-group">
+          <label>Nome (opcional)</label>
+          <input type="text" name="nome">
+        </div>
+        <div class="form-group">
+          <label>Motivo / Justificativa</label>
+          <textarea name="motivo" rows="3"
+                    placeholder="Ex.: esqueci minha senha após período de férias"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary full">SOLICITAR REDEFINIÇÃO</button>
+      </form>
+
+      <div style="text-align:center; margin-top:14px;">
+        <a href="{{ url_for('auth.login') }}" class="btn btn-link">← Voltar ao login</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

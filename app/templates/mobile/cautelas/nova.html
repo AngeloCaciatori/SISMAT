@@ -1,0 +1,187 @@
+{% extends "mobile/base_mobile.html" %}
+
+{% block title %}Nova Cautela{% endblock %}
+{% block page_title %}Nova Cautela{% endblock %}
+{% block back_url %}{{ url_for('cautelas.lista') }}{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('cautelas.nova') }}" id="form-cautela">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+{# ─── ETAPA 1: Cabeçalho ─── #}
+<div class="secao-mobile">1. Identificação</div>
+<div class="form-mobile">
+
+  <div class="form-group-mobile">
+    <label>Número da Cautela</label>
+    <input class="input-mobile" type="text" value="{{ numero_proposto }}" readonly
+           style="background:#f3f4f6; color:#6b7280;">
+    <input type="hidden" name="numero" value="{{ numero_proposto }}">
+  </div>
+
+  <div class="form-group-mobile">
+    <label for="data_cautela">Data da Cautela *</label>
+    <input class="input-mobile" type="date" name="data_cautela" id="data_cautela"
+           value="{{ hoje_str }}" required>
+  </div>
+
+  <div class="form-group-mobile">
+    <label for="devolucao_prevista">Devolução prevista</label>
+    <input class="input-mobile" type="date" name="devolucao_prevista" id="devolucao_prevista">
+  </div>
+
+</div>
+
+{# ─── ETAPA 2: Recebedor ─── #}
+<div class="secao-mobile">2. Recebedor</div>
+<div class="form-mobile">
+
+  <div class="form-group-mobile">
+    <label>Tipo de OM</label>
+    <div style="display:flex; gap:16px; padding:6px 0;">
+      <label style="display:flex; align-items:center; gap:6px; font-weight:normal; font-size:15px;">
+        <input type="radio" name="om_tipo" value="interna" checked onchange="alternarOM()">
+        Interna ({{ NOME_INSTITUICAO }})
+      </label>
+      <label style="display:flex; align-items:center; gap:6px; font-weight:normal; font-size:15px;">
+        <input type="radio" name="om_tipo" value="externa" onchange="alternarOM()">
+        Externa
+      </label>
+    </div>
+  </div>
+
+  <div id="campos-interna">
+    <div class="form-group-mobile">
+      <label for="militar_id">Militar do Efetivo</label>
+      <select class="input-mobile" name="militar_id" id="militar_id">
+        <option value="">— selecione —</option>
+        {% for m in militares %}
+        <option value="{{ m.id }}"
+          {% if request.args.get('militar_id')|int == m.id %}selected{% endif %}>
+          {{ m.graduacao }} {{ m.nome_guerra }} — {{ m.nome_completo[:30] }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div id="campos-externa" style="display:none;">
+    <div class="form-group-mobile">
+      <label for="om_externa_nome">Nome da OM Externa</label>
+      <input class="input-mobile" type="text" name="om_externa_nome" id="om_externa_nome">
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div class="form-group-mobile">
+        <label>Graduação</label>
+        <input class="input-mobile" type="text" name="recebedor_grad" placeholder="1º Sgt">
+      </div>
+      <div class="form-group-mobile">
+        <label>Nome de Guerra</label>
+        <input class="input-mobile" type="text" name="recebedor_nome_guerra" placeholder="SILVA">
+      </div>
+    </div>
+    <div class="form-group-mobile">
+      <label>CPF</label>
+      <input class="input-mobile" type="text" name="recebedor_cpf" placeholder="00000000000" maxlength="14">
+    </div>
+  </div>
+
+  <div class="form-group-mobile">
+    <label for="finalidade">Finalidade / Justificativa</label>
+    <input class="input-mobile" type="text" name="finalidade" id="finalidade"
+           placeholder="Ex.: instrução, exercício...">
+  </div>
+
+</div>
+
+{# ─── ETAPA 3: Itens ─── #}
+<div class="secao-mobile">3. Itens cautelados</div>
+<div class="form-mobile">
+
+  <div id="itens-container">
+    <div class="item-linha card-mobile" style="margin-bottom:10px;">
+      <div class="form-group-mobile" style="margin-bottom:10px;">
+        <label>Material *</label>
+        <select class="input-mobile" name="material_id[]" required onchange="atualizarDisp(this)">
+          <option value="">— selecione —</option>
+          {% for mat in materiais %}
+          <option value="{{ mat.id }}" data-disp="{{ mat.qnt_disponivel }}">
+            {{ mat.nome }} (disp: {{ mat.qnt_disponivel }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div class="form-group-mobile" style="margin-bottom:0;">
+          <label>Qtd *</label>
+          <input class="input-mobile" type="number" name="quantidade[]" value="1" min="1" required>
+        </div>
+        <div class="form-group-mobile" style="margin-bottom:0;">
+          <label>Disponível</label>
+          <input class="input-mobile disp-display" type="text" value="—" readonly style="background:#f3f4f6;">
+        </div>
+      </div>
+      <div class="form-group-mobile" style="margin-top:10px; margin-bottom:0;">
+        <label>Obs. do item</label>
+        <input class="input-mobile" type="text" name="obs_item[]" placeholder="2ª classe, novo...">
+      </div>
+    </div>
+  </div>
+
+  <button type="button" class="btn-mobile btn-secondary" onclick="addItem()" style="margin-bottom:16px;">
+    &#43; Adicionar item
+  </button>
+
+</div>
+
+<div style="padding: 0 12px 12px; display:flex; flex-direction:column; gap:8px;">
+  <button type="submit" class="btn-mobile btn-primary">&#128203; Registrar Cautela</button>
+  <a href="{{ url_for('cautelas.lista') }}" class="btn-mobile btn-secondary">Cancelar</a>
+</div>
+
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function alternarOM() {
+  var interna = document.querySelector('input[name="om_tipo"][value="interna"]').checked;
+  document.getElementById('campos-interna').style.display = interna ? '' : 'none';
+  document.getElementById('campos-externa').style.display = interna ? 'none' : '';
+}
+
+function atualizarDisp(sel) {
+  var opt = sel.options[sel.selectedIndex];
+  var disp = opt ? (opt.dataset.disp || '—') : '—';
+  var row = sel.closest('.item-linha');
+  if (row) {
+    var dispInput = row.querySelector('.disp-display');
+    if (dispInput) dispInput.value = disp;
+  }
+}
+
+function addItem() {
+  var container = document.getElementById('itens-container');
+  var clone = container.querySelector('.item-linha').cloneNode(true);
+  clone.querySelectorAll('select').forEach(function(s) { s.value = ''; s.onchange = function() { atualizarDisp(this); }; });
+  clone.querySelectorAll('input[type="number"]').forEach(function(i) { i.value = 1; });
+  clone.querySelectorAll('input[type="text"]:not(.disp-display)').forEach(function(i) { i.value = ''; });
+  clone.querySelectorAll('.disp-display').forEach(function(i) { i.value = '—'; });
+
+  var removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'btn-mobile btn-danger';
+  removeBtn.style.cssText = 'margin-top:8px; height:38px; font-size:13px;';
+  removeBtn.textContent = '✕ Remover item';
+  removeBtn.onclick = function() { this.closest('.item-linha').remove(); };
+  clone.appendChild(removeBtn);
+
+  container.appendChild(clone);
+}
+
+// Inicializa selects existentes
+document.querySelectorAll('select[name="material_id[]"]').forEach(function(s) {
+  s.addEventListener('change', function() { atualizarDisp(this); });
+});
+</script>
+{% endblock %}

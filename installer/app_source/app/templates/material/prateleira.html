@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Ficha de Prateleira{% endblock %}
+
+{% block head_extra %}
+<style>
+  .ficha-card {
+    background: var(--branco); border: 2px solid #000;
+    cursor: pointer; transition: box-shadow 0.15s;
+    position: relative; font-family: 'Times New Roman', serif;
+  }
+  .ficha-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+  .ficha-card.selected { box-shadow: 0 0 0 3px var(--verde-claro); }
+  .ficha-card .row1 {
+    display: grid; grid-template-columns: 1.4fr 1fr 1fr;
+    border-bottom: 1px solid #000; align-items: center;
+  }
+  .ficha-card .row1 .titulo {
+    font-weight: bold; font-size: 14px; padding: 8px 10px;
+    border-right: 1px solid #000; background: var(--bege);
+  }
+  .ficha-card .row1 .info {
+    padding: 8px 10px; font-size: 13px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .ficha-card .row1 .info.com-borda { border-right: 1px solid #000; }
+  .ficha-card .row1 .valor-num { font-weight: bold; font-size: 16px; }
+  .ficha-card .row2 {
+    display: grid; grid-template-columns: 1.4fr 1fr 1fr; align-items: stretch;
+  }
+  .ficha-card .row2 .col {
+    padding: 10px; font-size: 13px; display: flex; align-items: center;
+  }
+  .ficha-card .row2 .col.com-borda { border-right: 1px solid #000; }
+  .ficha-card .row2 .tipo-rotulo {
+    border: 1px solid #000; padding: 4px 12px; font-size: 12px; font-weight: bold;
+  }
+  .ficha-card .row2 .contagem-input {
+    border: 1px solid #000; flex: 1; height: 28px; margin-left: 8px; background: white;
+  }
+  .ficha-card .row3 {
+    border-top: 1px solid #000; padding: 14px 10px;
+    font-size: 18px; font-weight: bold;
+    min-height: 50px; display: flex; align-items: center;
+  }
+  .ficha-checkbox {
+    position: absolute; top: 6px; right: 6px;
+    width: 22px; height: 22px; cursor: pointer; z-index: 5;
+    accent-color: var(--verde-medio);
+  }
+  .acoes-bar {
+    position: sticky; bottom: 0; background: var(--verde-escuro); color: #fff;
+    padding: 12px 20px; margin-top: 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap; z-index: 10;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.2); border-radius: 6px;
+  }
+  .acoes-bar strong { color: var(--khaki); }
+  .grid-fichas {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 14px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Ficha de Prateleira</h1>
+<div class="page-subtitle">Uma ficha por material — selecione e imprima para colar nas prateleiras</div>
+
+<div class="tab-nav-sismat" style="display:flex; gap:2px; background:var(--bege); padding:4px; border-radius:6px; margin-bottom:16px;">
+  <a href="{{ url_for('material.lista') }}" style="padding:8px 14px; border-radius:4px; text-decoration:none; font-size:13px; color:var(--texto);">Lista de Materiais</a>
+  <a href="{{ url_for('material.prateleira') }}" style="background:var(--verde-medio); color:#fff; padding:8px 14px; border-radius:4px; text-decoration:none; font-size:13px;">📚 Ficha de Prateleira</a>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h3>{{ materiais|length }} ficha(s)</h3>
+    <form method="GET" style="display:flex; gap:8px; flex-wrap:wrap;">
+      <select name="p" class="search-box" style="min-width:180px;" onchange="this.form.submit()">
+        <option value="">Todas as prateleiras</option>
+        {% for p in todas_prateleiras %}
+        <option value="{{ p }}" {% if prat_filtro == p %}selected{% endif %}>Prateleira {{ p }}</option>
+        {% endfor %}
+      </select>
+      <select name="tipo" class="search-box" style="min-width:160px;" onchange="this.form.submit()">
+        <option value="">Todos os tipos</option>
+        {% for t in tipos_disponiveis %}
+        <option value="{{ t }}" {% if tipo == t %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+      {% if prat_filtro or tipo %}
+      <a href="{{ url_for('material.prateleira') }}" class="btn btn-secondary btn-small">Limpar</a>
+      {% endif %}
+    </form>
+  </div>
+
+  <div style="padding: 20px; background: var(--areia);">
+    <div style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+      <button type="button" class="btn btn-secondary btn-small" onclick="marcarTodos(true)">✓ Marcar todos visíveis</button>
+      <button type="button" class="btn btn-secondary btn-small" onclick="marcarTodos(false)">✗ Desmarcar</button>
+      <span style="font-size:12px; color:var(--texto-claro);">Clique em qualquer ficha para selecionar.</span>
+    </div>
+
+    <div class="grid-fichas">
+      {% for m in materiais %}
+      <div class="ficha-card" data-id="{{ m.id }}" onclick="toggleFicha(this, event)">
+        <input type="checkbox" class="ficha-checkbox" value="{{ m.id }}" onclick="event.stopPropagation(); atualizarSelecao();">
+        <div class="row1">
+          <div class="titulo">FICHA DE PRATELEIRA</div>
+          <div class="info com-borda"><span>Prateleira:</span><span class="valor-num">{{ m.prateleira or '—' }}</span></div>
+          <div class="info"><span>SISCOFIS:</span><span class="valor-num" style="font-size:13px; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ m.ficha_siscofis or '' }}">{{ m.ficha_siscofis or '—' }}</span></div>
+        </div>
+        <div class="row2">
+          <div class="col com-borda"><span class="tipo-rotulo">{{ m.tipo }}</span></div>
+          <div class="col com-borda">QTD ESPERADA: <strong style="margin-left:4px;">{{ m.qnt_siscofis or 0 }}</strong></div>
+          <div class="col">Contagem: <span class="contagem-input"></span></div>
+        </div>
+        <div class="row3">{{ m.nomenclatura }}</div>
+      </div>
+      {% else %}
+      <div style="grid-column: 1/-1; text-align:center; padding:40px; color:var(--texto-claro);">
+        Nenhum material encontrado com esses filtros.
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="acoes-bar">
+  <div>
+    <strong id="contador">0</strong> ficha(s) selecionada(s)
+    <span style="margin-left:8px; font-size:12px; opacity:0.85;">de {{ materiais|length }} disponíveis</span>
+  </div>
+  <div style="display:flex; gap:8px;">
+    <button type="button" class="btn btn-secondary btn-small" onclick="imprimirSelecionadas('todas')">🖨 Imprimir TODAS visíveis</button>
+    <button type="button" class="btn btn-primary btn-small" onclick="imprimirSelecionadas()" id="btn-imprimir">🖨 Imprimir selecionadas</button>
+  </div>
+</div>
+
+<div class="info-box" style="margin-top:14px;">
+  <strong>Como funciona:</strong> cada ficha representa um material. Marque as que quer imprimir
+  e clique em "Imprimir selecionadas". Cada ficha sai em formato cortável, com espaço em branco
+  para o operador anotar fisicamente a contagem real.
+</div>
+
+<div style="margin-top: 16px;">
+  <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-small">← Voltar ao Painel</a>
+</div>
+
+<script>
+function toggleFicha(card, event) {
+  if (event && event.target.tagName === 'INPUT') return;
+  const cb = card.querySelector('.ficha-checkbox');
+  cb.checked = !cb.checked;
+  atualizarSelecao();
+}
+function atualizarSelecao() {
+  let n = 0;
+  document.querySelectorAll('.ficha-checkbox').forEach(cb => {
+    cb.closest('.ficha-card').classList.toggle('selected', cb.checked);
+    if (cb.checked) n++;
+  });
+  document.getElementById('contador').textContent = n;
+  document.getElementById('btn-imprimir').disabled = (n === 0);
+}
+function marcarTodos(estado) {
+  document.querySelectorAll('.ficha-checkbox').forEach(cb => cb.checked = estado);
+  atualizarSelecao();
+}
+function imprimirSelecionadas(modo) {
+  let ids;
+  if (modo === 'todas') {
+    ids = Array.from(document.querySelectorAll('.ficha-checkbox')).map(c => c.value);
+  } else {
+    ids = Array.from(document.querySelectorAll('.ficha-checkbox:checked')).map(c => c.value);
+  }
+  if (ids.length === 0) { alert('Selecione pelo menos uma ficha.'); return; }
+  window.open("{{ url_for('material.imprimir_prateleira') }}?ids=" + ids.join(','), '_blank');
+}
+atualizarSelecao();
+</script>
+{% endblock %}

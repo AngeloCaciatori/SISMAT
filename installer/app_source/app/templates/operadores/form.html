@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{% if modo == 'novo' %}Novo Operador{% else %}Editar Operador{% endif %}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">
+  {% if modo == 'novo' %}+ Novo Operador{% else %}✎ Editar Operador {{ op.login }}{% endif %}
+</h1>
+
+<div class="panel" style="padding: 24px; max-width: 700px;">
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-group">
+      <label for="login">Login (usuário)</label>
+      {% if modo == 'novo' %}
+      <input type="text" name="login" id="login" required
+             pattern="[a-z0-9._-]{3,30}"
+             placeholder="Ex.: silva"
+             autocomplete="off">
+      <div class="hint">Apelido curto — letras minúsculas, números, ponto, underline ou hífen</div>
+      {% else %}
+      <input type="text" value="{{ op.login }}" readonly
+             style="background: var(--bege);">
+      <div class="hint">O login não pode ser alterado depois de criado</div>
+      {% endif %}
+    </div>
+
+    <div class="form-group">
+      <label for="militar_id">Vincular a um militar do Efetivo (opcional)</label>
+      <select name="militar_id" id="militar_id">
+        <option value="">— Não vincular —</option>
+        {% for m in militares %}
+        <option value="{{ m.id }}"
+          {% if op and op.militar_id == m.id %}selected{% endif %}>
+          {{ m.graduacao }} {{ m.nome_guerra }}
+          {% if m.nome_completo %} — {{ m.nome_completo }}{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+      <div class="hint">Útil para identificar quem é o operador no efetivo</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="form-group">
+        <label for="secao">Seção</label>
+        <input type="text" name="secao" id="secao"
+               value="{{ op.secao if op else 'Reserva de Material' }}">
+      </div>
+      <div class="form-group">
+        <label for="nivel_seguranca">Nível de Acesso</label>
+        <select name="nivel_seguranca" id="nivel_seguranca">
+          <option value="2" {% if op and op.nivel_seguranca == 2 %}selected{% endif %}>
+            Operador (acesso padrão)
+          </option>
+          <option value="1" {% if op and op.nivel_seguranca == 1 %}selected{% endif %}>
+            Administrador (acesso total)
+          </option>
+        </select>
+      </div>
+    </div>
+
+    {% if modo == 'novo' %}
+    <div class="form-group">
+      <label for="senha">Senha Inicial</label>
+      <input type="text" name="senha" id="senha" required minlength="6"
+             placeholder="Ex.: senha123"
+             autocomplete="new-password">
+      <div class="hint">Mínimo 6 caracteres. O operador será obrigado a trocar no 1º login.</div>
+    </div>
+    {% else %}
+    <div class="form-group">
+      <label>
+        <input type="checkbox" name="ativo" {% if op.ativo %}checked{% endif %}>
+        Conta ativa (desmarque para desativar sem apagar)
+      </label>
+    </div>
+    {% endif %}
+
+    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
+      <a href="{{ url_for('operadores.lista') }}" class="btn btn-secondary">Cancelar</a>
+      <button type="submit" class="btn btn-primary">
+        {% if modo == 'novo' %}Cadastrar{% else %}Salvar Alterações{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

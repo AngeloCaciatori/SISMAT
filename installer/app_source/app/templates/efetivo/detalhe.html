@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+{% block title %}{{ militar.graduacao or '' }} {{ militar.nome_guerra or militar.cpf }}{% endblock %}
+
+{% block head_extra %}
+<style>
+  .detalhe-grid { display: grid; grid-template-columns: 200px 1fr; gap: 24px; }
+  @media (max-width: 700px) { .detalhe-grid { grid-template-columns: 1fr; } }
+  .foto-wrap {
+    width: 200px; height: 250px; background: var(--bege);
+    border: 1px solid var(--borda); border-radius: 6px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--texto-claro); font-size: 12px; text-align: center;
+  }
+  .foto-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  .foto-acoes { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .dados-table { width: 100%; font-size: 14px; }
+  .dados-table td { padding: 6px 0; vertical-align: top; }
+  .dados-table td:first-child { width: 150px; color: var(--texto-claro); font-size: 12px; }
+  .medidas-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 8px; }
+  @media (max-width: 600px) { .medidas-grid { grid-template-columns: repeat(3, 1fr); } }
+  .medida-card { background: var(--bege); padding: 10px; border-radius: 4px; text-align: center; }
+  .medida-card .rotulo { font-size: 10px; color: var(--texto-claro); text-transform: uppercase; }
+  .medida-card .valor { font-size: 20px; font-weight: bold; color: var(--verde-escuro); margin-top: 2px; }
+  .medida-card .valor.vazio { color: var(--texto-claro); font-style: italic; font-size: 14px; }
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 999; padding: 20px;
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal-webcam { background: white; border-radius: 8px; padding: 20px; max-width: 520px; width: 100%; }
+  .modal-webcam video, .modal-webcam canvas {
+    width: 100%; max-height: 380px; background: #000; border-radius: 4px; display: block;
+  }
+  .aviso-excluido {
+    background: #f5e0e0; border-left: 4px solid var(--vermelho);
+    padding: 12px 16px; border-radius: 4px; margin-bottom: 16px; font-size: 13px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+  <div>
+    <h1 class="page-title">
+      {{ militar.graduacao or '—' }} {{ militar.nome_guerra or militar.cpf }}
+      {% if militar.excluido %}<span class="tag tag-vermelho">Excluído</span>{% endif %}
+    </h1>
+    <div class="page-subtitle">
+      ID #{{ militar.id }} · {{ militar.om }}
+      {% if militar.antiguidade %} · Ant. {{ militar.antiguidade }}{% endif %}
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a href="{{ url_for('efetivo.imprimir_cautelas', mil_id=militar.id) }}" target="_blank"
+       class="btn btn-primary btn-small">📥 Imprimir Cautelas (FIDU)</a>
+    <a href="{{ url_for('efetivo.editar', mil_id=militar.id) }}" class="btn btn-secondary btn-small">✎ Editar</a>
+    {% if militar.excluido %}
+      <form method="POST" action="{{ url_for('efetivo.restaurar', mil_id=militar.id) }}" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-primary btn-small">↺ Restaurar</button>
+      </form>
+      {% if dias_restantes is not none and dias_restantes == 0 %}
+      <form method="POST" action="{{ url_for('efetivo.excluir_permanente', mil_id=militar.id) }}" style="display:inline;"
+            onsubmit="return confirm('APAGAR DEFINITIVAMENTE? Esta ação NÃO pode ser desfeita.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-danger btn-small">🗑 Apagar definitivamente</button>
+      </form>
+      {% endif %}
+    {% else %}
+      <form method="POST" action="{{ url_for('efetivo.excluir', mil_id=militar.id) }}" style="display:inline;"
+            onsubmit="return confirm('Marcar {{ militar.nome_guerra or militar.cpf }} como excluído? Pode ser restaurado por {{ prazo_exclusao }} dias.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-danger btn-small">🗑 Excluir</button>
+      </form>
+    {% endif %}
+    <a href="{{ url_for('efetivo.lista') }}" class="btn btn-secondary btn-small">← Lista</a>
+  </div>
+</div>
+
+{% if militar.excluido and dias_restantes is not none %}
+<div class="aviso-excluido">
+  <strong>Excluído em {{ militar.excluido_em | data_br }}.</strong>
+  {% if dias_restantes > 0 %}
+    Pode ser restaurado por mais <strong>{{ dias_restantes }} dia(s)</strong> antes de ser apagado definitivamente.
+  {% else %}
+    Prazo de {{ prazo_exclusao }} dias <strong>expirado</strong> — admin pode apagar definitivamente.
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="panel" style="padding: 24px; margin-top: 16px;">
+  <div class="detalhe-grid">
+    <div>
+      <div class="foto-wrap">
+        {% if militar.foto_path %}
+          <img src="{{ url_for('static', filename='uploads/' + militar.foto_path) }}" alt="">
+        {% else %}Sem foto<br>cadastrada{% endif %}
+      </div>
+      <div class="foto-acoes">
+        {% if is_localhost %}
+        <button type="button" class="btn btn-secondary btn-small" onclick="abrirWebcam()">📷 Tirar foto</button>
+        {% else %}
+        <button type="button" class="btn btn-secondary btn-small" disabled
+                title="Webcam só funciona no PC servidor. Você está acessando via {{ host_atual }} — use 'Carregar arquivo'."
+                style="opacity:0.45; cursor:not-allowed;">
+          📷 Tirar foto (só servidor)
+        </button>
+        {% endif %}
+        <form id="form-upload" method="POST" action="{{ url_for('efetivo.upload_foto', mil_id=militar.id) }}" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="btn btn-secondary btn-small" style="text-align:center; cursor:pointer; display:block; margin:0;">
+            📁 Carregar arquivo
+            <input type="file" name="foto" accept="image/*" style="display:none;" onchange="this.form.submit();">
+          </label>
+        </form>
+        {% if militar.foto_path %}
+        <form method="POST" action="{{ url_for('efetivo.remover_foto', mil_id=militar.id) }}" onsubmit="return confirm('Remover foto?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger btn-small" style="width:100%;">🗑 Remover foto</button>
+        </form>
+        {% endif %}
+      </div>
+      <div style="font-size:10px; color:var(--texto-claro); text-align:center; margin-top:8px;">
+        {% if is_localhost %}
+        💡 Você está no PC servidor — webcam disponível.
+        {% else %}
+        🌐 Acesso remoto ({{ host_atual }}) — webcam indisponível, use "Carregar arquivo".
+        {% endif %}
+      </div>
+    </div>
+
+    <div>
+      <h4 style="color:var(--verde-escuro); margin-bottom:8px; font-size:13px; text-transform:uppercase;">Dados Pessoais</h4>
+      <table class="dados-table">
+        <tr><td>Graduação:</td><td><strong>{{ militar.graduacao or '—' }}</strong></td></tr>
+        <tr><td>Nome de Guerra:</td><td><strong>{{ militar.nome_guerra or '—' }}</strong></td></tr>
+        <tr><td>Nome Completo:</td><td>{{ militar.nome_completo or '—' }}</td></tr>
+        <tr><td>CPF:</td><td style="font-family:'Courier New',monospace;">{{ militar.cpf }}</td></tr>
+        <tr><td>RI:</td><td>{{ militar.ri or '—' }}</td></tr>
+        <tr><td>Antiguidade:</td><td>{{ militar.antiguidade if militar.antiguidade else '—' }}</td></tr>
+        <tr><td>Número (NR):</td><td>{{ militar.numero or '—' }}</td></tr>
+        <tr><td>OM:</td><td>{{ militar.om }}</td></tr>
+        <tr><td>Telefone 1:</td><td>{{ militar.telefone1 or '—' }}</td></tr>
+        <tr><td>Telefone 2:</td><td>{{ militar.telefone2 or '—' }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h4 style="color:var(--verde-escuro); margin: 24px 0 8px; font-size:13px; text-transform:uppercase; border-top:1px solid var(--borda); padding-top: 16px;">📐 Medidas Corporais</h4>
+  {% set m = militar.medidas %}
+  <form method="POST" action="{{ url_for('efetivo.atualizar_medidas', mil_id=militar.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div id="medidas-display" {% if not m %}style="display:none;"{% endif %}>
+      <div class="medidas-grid">
+        <div class="medida-card"><div class="rotulo">Ombro</div><div class="valor {% if not m or not m.ombro %}vazio{% endif %}">{{ m.ombro if m and m.ombro else '—' }}</div></div>
+        <div class="medida-card"><div class="rotulo">Cintura</div><div class="valor {% if not m or not m.cintura %}vazio{% endif %}">{{ m.cintura if m and m.cintura else '—' }}</div></div>
+        <div class="medida-card"><div class="rotulo">Quadril</div><div class="valor {% if not m or not m.quadril %}vazio{% endif %}">{{ m.quadril if m and m.quadril else '—' }}</div></div>
+        <div class="medida-card"><div class="rotulo">Cabeça</div><div class="valor {% if not m or not m.cabeca %}vazio{% endif %}">{{ m.cabeca if m and m.cabeca else '—' }}</div></div>
+        <div class="medida-card"><div class="rotulo">Pé</div><div class="valor {% if not m or not m.pe %}vazio{% endif %}">{{ m.pe if m and m.pe else '—' }}</div></div>
+        <div class="medida-card"><div class="rotulo">Braço</div><div class="valor {% if not m or not m.braco %}vazio{% endif %}">{{ m.braco if m and m.braco else '—' }}</div></div>
+      </div>
+      <div style="text-align:right; margin-top:8px;">
+        <button type="button" class="btn btn-secondary btn-small" onclick="editarMedidas()">✎ Atualizar medidas</button>
+      </div>
+    </div>
+    <div id="medidas-edit" {% if m %}style="display:none;"{% endif %}>
+      <div class="medidas-grid">
+        <div class="medida-card"><div class="rotulo">Ombro</div><input type="text" name="ombro" value="{{ m.ombro if m else '' }}" style="width:100%; margin-top:4px; font-size:14px; text-align:center;"></div>
+        <div class="medida-card"><div class="rotulo">Cintura</div><input type="text" name="cintura" value="{{ m.cintura if m else '' }}" style="width:100%; margin-top:4px; font-size:14px; text-align:center;"></div>
+        <div class="medida-card"><div class="rotulo">Quadril</div><input type="text" name="quadril" value="{{ m.quadril if m else '' }}" style="width:100%; margin-top:4px; font-size:14px; text-align:center;"></div>
+        <div class="medida-card"><div class="rotulo">Cabeça</div><input type="text" name="cabeca" value="{{ m.cabeca if m else '' }}" style="width:100%; margin-top:4px; font-size:14px; text-align:center;"></div>
+        <div class="medida-card"><div class="rotulo">Pé</div><input type="text" name="pe" value="{{ m.pe if m else '' }}" style="width:100%; margin-top:4px; font-size:14px; text-align:center;"></div>
+        <div class="medida-card"><div class="rotulo">Braço</div><input type="text" name="braco" value="{{ m.braco if m else '' }}" style="width:100%; margin-top:4px; font-size:14px; text-align:center;"></div>
+      </div>
+      <div style="text-align:right; margin-top:8px; display:flex; justify-content:flex-end; gap:6px;">
+        {% if m %}<button type="button" class="btn btn-secondary btn-small" onclick="cancelarMedidas()">Cancelar</button>{% endif %}
+        <button type="submit" class="btn btn-primary btn-small">Salvar Medidas</button>
+      </div>
+    </div>
+  </form>
+
+  <h4 style="color:var(--verde-escuro); margin: 24px 0 8px; font-size:13px; text-transform:uppercase; border-top:1px solid var(--borda); padding-top: 16px;">📋 Cautelas Ativas ({{ cautelas_ativas|length }})</h4>
+  {% if cautelas_ativas %}
+  <table>
+    <thead><tr><th>Nº</th><th>Itens</th><th>Data</th><th>Devolução</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for c in cautelas_ativas %}
+      <tr>
+        <td><strong>{{ c.numero }}</strong></td>
+        <td style="font-size:12px;">{% for item in c.itens %}{{ item.quantidade }}× {{ item.material.nomenclatura }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+        <td>{{ c.data_cautela | data_br }}</td>
+        <td>{{ c.devolucao_prevista | data_br if c.devolucao_prevista else '—' }}</td>
+        <td>{% if c.atrasada %}<span class="tag tag-vermelho">Atrasada</span>{% else %}<span class="tag tag-verde">Ativa</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="padding: 16px; background: var(--areia); border-radius: 4px; color: var(--texto-claro); text-align: center; font-size: 13px;">
+    Nenhuma cautela ativa para este militar.
+  </div>
+  {% endif %}
+</div>
+
+<div id="modal-webcam" class="modal-overlay hidden">
+  <div class="modal-webcam">
+    <h3 style="color:var(--verde-escuro); margin-bottom:12px;">📷 Tirar foto</h3>
+    <div id="webcam-erro" style="display:none; padding:12px; background:#f5e0e0; color:#6b1e1e; border-radius:4px; margin-bottom:12px; font-size:13px;"></div>
+    <video id="webcam-video" autoplay playsinline muted></video>
+    <canvas id="webcam-canvas" style="display:none;"></canvas>
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px; flex-wrap:wrap;">
+      <button type="button" class="btn btn-secondary" onclick="fecharWebcam()">Cancelar</button>
+      <button type="button" id="btn-capturar" class="btn btn-primary" onclick="capturar()">Capturar</button>
+      <button type="button" id="btn-refazer" class="btn btn-secondary" style="display:none;" onclick="refazer()">↺ Refazer</button>
+      <button type="button" id="btn-salvar" class="btn btn-primary" style="display:none;" onclick="salvarFoto()">Salvar</button>
+    </div>
+    <form id="form-webcam" method="POST" action="{{ url_for('efetivo.upload_foto', mil_id=militar.id) }}" style="display:none;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="foto_base64" id="foto-base64">
+    </form>
+  </div>
+</div>
+
+<script>
+let stream = null;
+
+function editarMedidas() {
+  document.getElementById('medidas-display').style.display = 'none';
+  document.getElementById('medidas-edit').style.display = 'block';
+}
+function cancelarMedidas() {
+  document.getElementById('medidas-display').style.display = 'block';
+  document.getElementById('medidas-edit').style.display = 'none';
+}
+
+async function abrirWebcam() {
+  const modal = document.getElementById('modal-webcam');
+  const video = document.getElementById('webcam-video');
+  const canvas = document.getElementById('webcam-canvas');
+  const erroDiv = document.getElementById('webcam-erro');
+
+  modal.classList.remove('hidden');
+  canvas.style.display = 'none';
+  video.style.display = 'block';
+  erroDiv.style.display = 'none';
+  document.getElementById('btn-capturar').style.display = 'inline-block';
+  document.getElementById('btn-capturar').disabled = true;
+  document.getElementById('btn-capturar').textContent = 'Aguarde...';
+  document.getElementById('btn-refazer').style.display = 'none';
+  document.getElementById('btn-salvar').style.display = 'none';
+
+  // Verifica suporte
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    erroDiv.textContent = 'Seu navegador não suporta acesso à webcam.';
+    erroDiv.style.display = 'block';
+    return;
+  }
+
+  // Aviso se não está em contexto seguro
+  if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    erroDiv.innerHTML = '<strong>Atenção:</strong> a webcam só funciona em <code>localhost</code> ou HTTPS. Use "Carregar arquivo" se acessando pela rede.';
+    erroDiv.style.display = 'block';
+    return;
+  }
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+    video.srcObject = stream;
+    await new Promise((resolve) => {
+      if (video.readyState >= 2) return resolve();
+      video.onloadedmetadata = () => resolve();
+    });
+    await video.play();
+    document.getElementById('btn-capturar').disabled = false;
+    document.getElementById('btn-capturar').textContent = 'Capturar';
+  } catch (e) {
+    erroDiv.innerHTML = '<strong>Erro ao acessar webcam:</strong> ' + (e.message || e.name) +
+      '<br><small>Verifique se concedeu permissão e se há uma câmera disponível.</small>';
+    erroDiv.style.display = 'block';
+    document.getElementById('btn-capturar').disabled = true;
+    document.getElementById('btn-capturar').textContent = 'Indisponível';
+  }
+}
+
+function capturar() {
+  const video = document.getElementById('webcam-video');
+  const canvas = document.getElementById('webcam-canvas');
+  if (!video.videoWidth || !video.videoHeight) {
+    alert('A câmera ainda está carregando. Aguarde um momento.');
+    return;
+  }
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  video.style.display = 'none';
+  canvas.style.display = 'block';
+  document.getElementById('btn-capturar').style.display = 'none';
+  document.getElementById('btn-refazer').style.display = 'inline-block';
+  document.getElementById('btn-salvar').style.display = 'inline-block';
+}
+
+function refazer() {
+  document.getElementById('webcam-canvas').style.display = 'none';
+  document.getElementById('webcam-video').style.display = 'block';
+  document.getElementById('btn-capturar').style.display = 'inline-block';
+  document.getElementById('btn-capturar').disabled = false;
+  document.getElementById('btn-capturar').textContent = 'Capturar';
+  document.getElementById('btn-refazer').style.display = 'none';
+  document.getElementById('btn-salvar').style.display = 'none';
+}
+
+function salvarFoto() {
+  const canvas = document.getElementById('webcam-canvas');
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  document.getElementById('foto-base64').value = dataUrl;
+  fecharWebcam();
+  document.getElementById('form-webcam').submit();
+}
+
+function fecharWebcam() {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+  document.getElementById('modal-webcam').classList.add('hidden');
+}
+</script>
+{% endblock %}

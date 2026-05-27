@@ -1,0 +1,452 @@
+/* ================================================================
+   SISMAT — mobile.css
+   Paleta: --azul #1a2744, --dourado #c9a227, --fundo #f4f1e8
+   NÃO carrega sismat.css — paleta independente
+================================================================ */
+
+:root {
+  --azul:     #1a2744;
+  --azul-med: #253660;
+  --dourado:  #c9a227;
+  --fundo:    #f4f1e8;
+  --branco:   #ffffff;
+  --cinza:    #6b7280;
+  --borda:    #d1c9b8;
+  --danger:   #dc2626;
+  --success:  #16a34a;
+  --warning:  #d97706;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--fundo);
+  color: #1f2937;
+  padding-top: 56px;    /* espaço topbar */
+  padding-bottom: 70px; /* espaço bottom-nav */
+  min-height: 100vh;
+}
+
+a { color: var(--azul); text-decoration: none; }
+
+/* ================================================================
+   TOPBAR MOBILE
+================================================================ */
+.topbar-mobile {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 56px;
+  background: var(--azul);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  z-index: 500;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.topbar-mobile .topbar-back {
+  color: var(--dourado);
+  font-size: 22px;
+  width: 40px;
+  text-align: center;
+  line-height: 56px;
+}
+
+.topbar-mobile .topbar-title {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  flex: 1;
+  text-align: center;
+}
+
+.topbar-mobile .topbar-action {
+  color: var(--dourado);
+  font-size: 13px;
+  width: 60px;
+  text-align: right;
+}
+
+/* ================================================================
+   BOTTOM NAV
+================================================================ */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 62px;
+  background: var(--azul);
+  display: flex;
+  align-items: stretch;
+  z-index: 500;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.25);
+}
+
+.bottom-nav a {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.55);
+  font-size: 10px;
+  gap: 3px;
+  border-top: 3px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.bottom-nav a .nav-icon { font-size: 20px; line-height: 1; }
+.bottom-nav a .nav-label { font-size: 10px; letter-spacing: 0.2px; }
+
+.bottom-nav a.active,
+.bottom-nav a:active {
+  color: var(--dourado);
+  border-top-color: var(--dourado);
+}
+
+/* ================================================================
+   CARDS MOBILE
+================================================================ */
+.card-mobile {
+  background: var(--branco);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+
+.card-mobile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.card-mobile-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--azul);
+}
+
+.card-mobile-sub {
+  font-size: 13px;
+  color: var(--cinza);
+  margin-bottom: 6px;
+}
+
+.card-mobile-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--borda);
+}
+
+.card-mobile-row:last-child { border-bottom: none; }
+.card-mobile-row .label { color: var(--cinza); }
+.card-mobile-row .value { font-weight: 600; }
+
+/* ================================================================
+   STAT CARDS (DASHBOARD)
+================================================================ */
+.stats-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.stat-card-mobile {
+  background: var(--branco);
+  border-radius: 10px;
+  border-left: 4px solid var(--dourado);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.stat-card-mobile.danger  { border-left-color: var(--danger); }
+.stat-card-mobile.success { border-left-color: var(--success); }
+.stat-card-mobile.warning { border-left-color: var(--warning); }
+
+.stat-icon-mobile { font-size: 28px; }
+
+.stat-info-mobile .stat-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--azul);
+  line-height: 1;
+}
+
+.stat-info-mobile .stat-label {
+  font-size: 12px;
+  color: var(--cinza);
+  margin-top: 2px;
+}
+
+/* ================================================================
+   BOTÕES MOBILE (touch targets ≥ 48px)
+================================================================ */
+.btn-mobile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 0 20px;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  transition: opacity 0.15s;
+}
+
+.btn-mobile:active { opacity: 0.8; }
+
+.btn-primary   { background: var(--azul);    color: var(--branco); }
+.btn-secondary { background: var(--fundo);   color: var(--azul); border: 1.5px solid var(--borda); }
+.btn-danger    { background: var(--danger);  color: var(--branco); }
+.btn-success   { background: var(--success); color: var(--branco); }
+.btn-dourado   { background: var(--dourado); color: var(--azul); }
+
+/* ================================================================
+   FORMULÁRIOS MOBILE
+================================================================ */
+.form-mobile { padding: 12px; }
+
+.form-group-mobile {
+  margin-bottom: 16px;
+}
+
+.form-group-mobile label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--azul);
+  margin-bottom: 6px;
+}
+
+.input-mobile {
+  width: 100%;
+  height: 44px;          /* evita zoom iOS (mínimo 16px font) */
+  font-size: 16px;
+  padding: 0 12px;
+  border: 1.5px solid var(--borda);
+  border-radius: 8px;
+  background: var(--branco);
+  color: #1f2937;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.input-mobile:focus {
+  outline: none;
+  border-color: var(--azul);
+  box-shadow: 0 0 0 3px rgba(26,39,68,0.12);
+}
+
+textarea.input-mobile {
+  height: auto;
+  min-height: 90px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+select.input-mobile {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%231a2744' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+/* ================================================================
+   BADGES / TAGS
+================================================================ */
+.badge-mobile {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.badge-verde   { background: #dcfce7; color: #166534; }
+.badge-amarelo { background: #fef9c3; color: #854d0e; }
+.badge-vermelho{ background: #fee2e2; color: #991b1b; }
+.badge-azul    { background: #dbeafe; color: #1e40af; }
+
+/* ================================================================
+   BUSCA
+================================================================ */
+.search-mobile {
+  padding: 10px 12px 4px;
+}
+
+.search-mobile input {
+  width: 100%;
+  height: 44px;
+  font-size: 16px;
+  padding: 0 14px 0 40px;
+  border: 1.5px solid var(--borda);
+  border-radius: 22px;
+  background: var(--branco) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat 12px center;
+  color: #1f2937;
+}
+
+.search-mobile input:focus {
+  outline: none;
+  border-color: var(--azul);
+}
+
+/* ================================================================
+   LISTA MOBILE (cards empilhados)
+================================================================ */
+.lista-mobile { padding: 8px 12px 0; }
+
+/* ================================================================
+   SEÇÃO DE TÍTULO
+================================================================ */
+.secao-mobile {
+  padding: 14px 12px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--cinza);
+}
+
+/* ================================================================
+   FLASH MESSAGES
+================================================================ */
+.flash-mobile {
+  margin: 8px 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.flash-mobile.success { background: #dcfce7; color: #166534; border-left: 4px solid #16a34a; }
+.flash-mobile.error   { background: #fee2e2; color: #991b1b; border-left: 4px solid #dc2626; }
+.flash-mobile.warning { background: #fef9c3; color: #854d0e; border-left: 4px solid #d97706; }
+
+/* ================================================================
+   PÁGINA "MAIS" (menu extra da bottom-nav)
+================================================================ */
+.mais-menu { padding: 12px; }
+
+.mais-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--branco);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1f2937;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.mais-item .mais-icon { font-size: 22px; width: 28px; text-align: center; }
+.mais-item.danger { color: var(--danger); }
+
+/* ================================================================
+   LOGIN MOBILE
+================================================================ */
+.login-mobile-wrap {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, var(--azul) 0%, var(--azul-med) 100%);
+  padding: 24px 20px;
+}
+
+.login-mobile-card {
+  background: var(--branco);
+  border-radius: 16px;
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.login-mobile-brasao {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.login-mobile-brasao img { width: 64px; height: 64px; object-fit: contain; }
+
+.login-mobile-title {
+  text-align: center;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--azul);
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+.login-mobile-sub {
+  text-align: center;
+  font-size: 12px;
+  color: var(--cinza);
+  margin-bottom: 24px;
+}
+
+/* ================================================================
+   DETALHE — ACCORDION SIMPLES
+================================================================ */
+.accordion-mobile {
+  background: var(--branco);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--azul);
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+
+.accordion-arrow { transition: transform 0.2s; }
+.accordion-header.open .accordion-arrow { transform: rotate(180deg); }
+
+.accordion-body {
+  display: none;
+  padding: 0 16px 14px;
+  border-top: 1px solid var(--borda);
+}
+
+.accordion-body.open { display: block; }
+
+/* ================================================================
+   RESPONSIVO SEGURO — garante desktop se cair aqui
+================================================================ */
+@media (min-width: 768px) {
+  body { padding-top: 0; padding-bottom: 0; }
+  .topbar-mobile, .bottom-nav { display: none; }
+}

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Lista de Conferência — Material</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Times New Roman', serif;
+    background: #fff;
+    padding: 10mm;
+    color: #000;
+    font-size: 10pt;
+  }
+  .topo-tela {
+    background: #1e3a5f; color: #fff;
+    padding: 10px 16px; margin: -10mm -10mm 12px -10mm;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  .topo-tela .btn-imprimir {
+    background: #c9a227; color: #1e3a5f; border: none; padding: 6px 16px;
+    border-radius: 4px; font-weight: bold; cursor: pointer;
+  }
+  .topo-tela .btn-fechar {
+    background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.6);
+    padding: 6px 16px; border-radius: 4px; cursor: pointer;
+  }
+
+  .cabecalho {
+    text-align: center; margin-bottom: 12px;
+    border-bottom: 2px solid #000; padding-bottom: 8px;
+  }
+  .cabecalho h1 { font-size: 18pt; margin-bottom: 4px; }
+  .cabecalho h2 { font-size: 13pt; font-weight: normal; font-style: italic; }
+  .cabecalho .subtitulo { font-size: 10pt; margin-top: 4px; color: #555; }
+
+  .info-bar {
+    display: flex; justify-content: space-between;
+    border: 1px solid #000; padding: 6px 10px; margin-bottom: 10px;
+    font-size: 10pt;
+  }
+  .info-bar div { flex: 1; }
+  .info-bar div + div { border-left: 1px dashed #000; padding-left: 12px; }
+
+  table {
+    width: 100%; border-collapse: collapse; margin-bottom: 12px;
+  }
+  th, td {
+    border: 1px solid #000; padding: 4px 6px;
+    text-align: left; vertical-align: middle;
+  }
+  th { background: #ddd; font-size: 9pt; text-transform: uppercase; }
+  td.center { text-align: center; }
+  td.right { text-align: right; }
+  td.contagem-cel { background: #f9f9f9; }
+
+  .grupo-tipo {
+    background: #1e3a5f; color: #fff; padding: 4px 8px; font-weight: bold;
+    margin-top: 12px; font-size: 11pt;
+  }
+
+  .assinatura {
+    margin-top: 24px; display: flex; justify-content: space-around;
+    page-break-inside: avoid;
+  }
+  .assinatura .linha {
+    border-top: 1px solid #000; width: 40%; text-align: center;
+    padding-top: 4px; font-size: 10pt;
+  }
+
+  @media print {
+    body { padding: 8mm; }
+    .topo-tela { display: none !important; }
+    @page { size: A4; margin: 10mm; }
+    table { font-size: 9pt; }
+    thead { display: table-header-group; }
+    tr { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topo-tela">
+  <div>
+    <strong>SISMAT — Lista de Conferência</strong> ({{ materiais|length }} item(ns))
+  </div>
+  <div style="display:flex; gap:8px;">
+    <button class="btn-imprimir" onclick="window.print()">🖨 Imprimir</button>
+    <button class="btn-fechar" onclick="window.close()">Fechar</button>
+  </div>
+</div>
+
+<div class="cabecalho">
+  <img src="{{ url_for('static', filename='img/BrasaoSISMAT.png') }}"
+       alt="Brasão" style="height:54px; margin-bottom:6px; display:block; margin-left:auto; margin-right:auto;">
+  <h1>{{ NOME_INSTITUICAO or 'BATERIA DE COMANDO DA AD/5' }}</h1>
+  <h2>Lista de Conferência — Controle de Material</h2>
+  <div class="subtitulo">Reserva de Material — Subtenência &nbsp;·&nbsp; {{ CIDADE_QUARTEL or 'Curitiba/PR' }}</div>
+</div>
+
+<div class="info-bar">
+  <div><strong>Operador:</strong> {{ operador }}</div>
+  <div><strong>Data:</strong> ____ / ____ / ________</div>
+  <div><strong>Total de itens:</strong> {{ materiais|length }}</div>
+</div>
+
+{% set ns = namespace(tipo_atual=None) %}
+<table>
+  <thead>
+    <tr>
+      <th style="width: 40px;">Cód.</th>
+      <th>Nomenclatura</th>
+      <th style="width: 110px;">Ficha SISCOFIS</th>
+      <th style="width: 60px;" class="center">Prat.</th>
+      <th style="width: 60px;" class="center">Reserva</th>
+      <th style="width: 50px;" class="right">QTD<br>Esperada</th>
+      <th style="width: 60px;" class="center">Contagem<br>Física</th>
+      <th style="width: 40px;" class="center">OK?</th>
+      <th style="width: 100px;">Observação</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in materiais %}
+      {% if m.tipo != ns.tipo_atual %}
+        {% set ns.tipo_atual = m.tipo %}
+        <tr><td colspan="9" class="grupo-tipo">{{ m.tipo }}</td></tr>
+      {% endif %}
+      <tr>
+        <td class="center">{{ m.id }}</td>
+        <td><strong>{{ m.nomenclatura }}</strong></td>
+        <td style="font-size:8pt;">
+          {% if m.ficha_siscofis %}{{ m.ficha_siscofis[:30] }}{% if m.ficha_siscofis|length > 30 %}…{% endif %}{% else %}—{% endif %}
+        </td>
+        <td class="center">{{ m.prateleira or '—' }}</td>
+        <td class="center" style="font-size:8pt;">{{ m.dependencia or '—' }}</td>
+        <td class="right"><strong>{{ m.qnt_siscofis or 0 }}</strong></td>
+        <td class="contagem-cel">&nbsp;</td>
+        <td class="contagem-cel center">&nbsp;</td>
+        <td class="contagem-cel">&nbsp;</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="9" class="center" style="padding: 20px; color: #888;">Nenhum material para conferência.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="assinatura">
+  <div class="linha">{{ operador }}<br>(Operador da Reserva)</div>
+  <div class="linha">__________________________<br>(Visto da Subtenência)</div>
+</div>
+
+<script>
+  setTimeout(function() { window.print(); }, 350);
+</script>
+</body>
+</html>

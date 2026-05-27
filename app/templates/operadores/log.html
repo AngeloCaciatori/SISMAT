@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Log de Ações{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+  <div>
+    <h1 class="page-title">&#128203; Log de Ações</h1>
+    <div class="page-subtitle">Registro de todas as ações realizadas no sistema &mdash; {{ total }} entrada(s)</div>
+  </div>
+  <a href="{{ url_for('operadores.lista') }}" class="btn btn-secondary btn-small">← Operadores</a>
+</div>
+
+<!-- Filtros -->
+<form method="GET" action="{{ url_for('operadores.log_auditoria') }}" class="panel" style="padding:16px; margin-bottom:16px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+  <div style="display:flex; flex-direction:column; gap:4px; min-width:180px;">
+    <label style="font-size:12px; color:var(--texto-claro); text-transform:uppercase;">Tipo de Ação</label>
+    <select name="acao" style="padding:6px 10px; border:1px solid var(--borda); border-radius:4px; background:var(--fundo); font-size:13px;">
+      <option value="">— Todas —</option>
+      {% for a in acoes_disponiveis %}
+      <option value="{{ a }}" {% if filtro_acao == a %}selected{% endif %}>{{ a }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:4px; min-width:160px;">
+    <label style="font-size:12px; color:var(--texto-claro); text-transform:uppercase;">Operador (login)</label>
+    <input type="text" name="op" value="{{ filtro_op }}" placeholder="Buscar login..."
+           style="padding:6px 10px; border:1px solid var(--borda); border-radius:4px; font-size:13px;">
+  </div>
+  <button type="submit" class="btn btn-primary btn-small" style="align-self:flex-end;">Filtrar</button>
+  {% if filtro_acao or filtro_op %}
+  <a href="{{ url_for('operadores.log_auditoria') }}" class="btn btn-secondary btn-small" style="align-self:flex-end;">Limpar</a>
+  {% endif %}
+</form>
+
+<!-- Tabela -->
+<div class="panel" style="padding:0; overflow:hidden;">
+  {% if entradas %}
+  <div style="overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <thead>
+        <tr style="background:var(--marinho); color:#fff;">
+          <th style="padding:10px 14px; text-align:left; font-weight:600; white-space:nowrap;">Data/Hora</th>
+          <th style="padding:10px 14px; text-align:left; font-weight:600;">Operador</th>
+          <th style="padding:10px 14px; text-align:left; font-weight:600;">Ação</th>
+          <th style="padding:10px 14px; text-align:left; font-weight:600;">Descrição</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entradas %}
+        <tr style="border-bottom:1px solid var(--borda); {% if loop.index is even %}background:var(--areia);{% endif %}">
+          <td style="padding:9px 14px; white-space:nowrap; font-size:12px; color:var(--texto-claro); font-family:'Courier New',monospace;">
+            {{ e.criado_em.strftime('%d/%m/%Y %H:%M') if e.criado_em else '—' }}
+          </td>
+          <td style="padding:9px 14px; white-space:nowrap;">
+            <strong>{{ e.operador_label }}</strong>
+            {% if e.operador and e.operador.militar %}
+            <br><span style="font-size:11px; color:var(--texto-claro);">{{ e.operador.login }}</span>
+            {% endif %}
+          </td>
+          <td style="padding:9px 14px; white-space:nowrap;">
+            {% set badge_cor = {
+              'NOVA_CAUTELA': '#2e7d32',
+              'DEVOLUCAO_CAUTELA': '#1565c0',
+              'CADASTRO_MILITAR': '#4a148c',
+              'EDICAO_MILITAR': '#e65100',
+              'EXCLUSAO_MILITAR': '#b71c1c',
+              'RESTAURACAO_MILITAR': '#00695c',
+              'CADASTRO_MATERIAL': '#1b5e20',
+              'EDICAO_MATERIAL': '#bf360c',
+              'REMOCAO_MATERIAL': '#880e4f',
+            } %}
+            {% set cor = badge_cor.get(e.acao, '#546e7a') %}
+            <span style="background:{{ cor }}; color:#fff; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; letter-spacing:.3px;">
+              {{ e.acao }}
+            </span>
+          </td>
+          <td style="padding:9px 14px;">{{ e.descricao }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Paginação -->
+  {% if total_paginas > 1 %}
+  <div style="padding:12px 16px; display:flex; gap:8px; align-items:center; border-top:1px solid var(--borda);">
+    {% if pagina > 1 %}
+    <a href="{{ url_for('operadores.log_auditoria', p=pagina-1, acao=filtro_acao, op=filtro_op) }}"
+       class="btn btn-secondary btn-small">← Anterior</a>
+    {% endif %}
+    <span style="font-size:13px; color:var(--texto-claro);">Página {{ pagina }} de {{ total_paginas }}</span>
+    {% if pagina < total_paginas %}
+    <a href="{{ url_for('operadores.log_auditoria', p=pagina+1, acao=filtro_acao, op=filtro_op) }}"
+       class="btn btn-secondary btn-small">Próxima →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div style="padding:40px; text-align:center; color:var(--texto-claro);">
+    <div style="font-size:2rem; margin-bottom:8px;">📋</div>
+    <p>Nenhuma entrada encontrada {% if filtro_acao or filtro_op %}com os filtros aplicados{% else %}ainda{% endif %}.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

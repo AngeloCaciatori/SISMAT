@@ -1,0 +1,46 @@
+LICENÇA DE USO — SISMAT
+Sistema de Controle de Material
+
+Copyright (c) 2025 Bateria de Comando da AD/5
+Subtenência / Reserva de Material
+Curitiba — PR
+
+===============================================================
+USO INTERNO EXCLUSIVO
+===============================================================
+
+Este software é de uso exclusivo da Bateria de Comando da AD/5
+e de suas organizações militares autorizadas.
+
+É expressamente proibido:
+  - Redistribuir ou comercializar este software
+  - Alterar e redistribuir o código-fonte sem autorização
+  - Utilizar para fins fora do escopo do controle de material
+    militar da unidade
+
+GARANTIA E RESPONSABILIDADE:
+  Este software é fornecido "como está", sem garantias de
+  qualquer natureza, expressas ou implícitas. O uso é de
+  responsabilidade exclusiva do operador.
+
+Para suporte ou dúvidas, contate a Subtenência da
+Bateria de Comando da AD/5.
+
+===============================================================
+COMPONENTES DE TERCEIROS (OPEN SOURCE)
+===============================================================
+
+Este sistema utiliza os seguintes pacotes open source,
+distribuídos sob suas respectivas licenças:
+
+  - Python 3.12         (PSF License)
+  - Flask               (BSD License)
+  - SQLAlchemy          (MIT License)
+  - Flask-Login         (MIT License)
+  - Flask-WTF           (BSD License)
+  - bcrypt              (Apache License 2.0)
+  - Pillow              (HPND License)
+  - Inno Setup 6        (Inno Setup License)
+
+As licenças completas dos componentes estão disponíveis
+nos respectivos repositórios dos projetos.

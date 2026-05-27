@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Nova Cautela{% endblock %}
+
+{% block head_extra %}
+<style>
+  .item-row {
+    display: grid; grid-template-columns: 2fr 80px 100px 1.2fr 40px;
+    gap: 8px; align-items: end; margin-bottom: 8px;
+    padding: 10px; background: var(--areia); border-radius: 4px;
+    border: 1px solid var(--borda);
+  }
+  .item-row label { font-size: 10px; color: var(--texto-claro); text-transform: uppercase; }
+  .item-row .disp { font-size: 11px; color: var(--texto-claro); margin-top: 2px; }
+  .item-row select, .item-row input { width: 100%; padding: 6px; font-size: 13px; }
+  .item-row .btn-remover {
+    background: var(--vermelho); color: #fff; border: none; border-radius: 4px;
+    cursor: pointer; height: 30px; font-size: 14px;
+  }
+  .external-fields { background: rgba(189,183,107,0.15); padding: 12px; border-radius: 4px; margin-top: 8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title">+ Nova Cautela</h1>
+<div class="page-subtitle">Registrar empréstimo de material</div>
+
+<form method="POST" action="{{ url_for('cautelas.nova') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="panel" style="padding: 24px;">
+
+    <!-- Numero + Datas -->
+    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+      <div class="form-group">
+        <label>Número da Cautela</label>
+        <input type="text" value="{{ numero_proposto }}" readonly
+               style="background: var(--bege); font-family: 'Courier New', monospace; font-weight: bold;">
+        <div class="hint">Gerado automaticamente</div>
+      </div>
+      <div class="form-group">
+        <label for="data_cautela">Data da Cautela <span style="color:var(--vermelho);">*</span></label>
+        <input type="date" name="data_cautela" id="data_cautela"
+               value="{{ hoje.strftime('%Y-%m-%d') }}" required>
+      </div>
+      <div class="form-group">
+        <label for="devolucao_prevista">Devolução prevista</label>
+        <input type="date" name="devolucao_prevista" id="devolucao_prevista"
+               value="{{ devolucao_padrao.strftime('%Y-%m-%d') }}">
+        <div class="hint">Opcional — para alertas de atraso</div>
+      </div>
+    </div>
+
+    <!-- Tipo de OM -->
+    <h4 style="color:var(--verde-escuro); margin: 16px 0 8px; font-size:13px; text-transform:uppercase; border-top:1px solid var(--borda); padding-top: 14px;">Recebedor</h4>
+
+    <div class="form-group">
+      <label>Tipo de OM</label>
+      <div style="display:flex; gap:16px;">
+        <label style="font-weight: normal;">
+          <input type="radio" name="om_tipo" value="interna" checked onclick="alternarOM()">
+          🏠 Interna (militar do Efetivo da Bia C AD/5)
+        </label>
+        <label style="font-weight: normal;">
+          <input type="radio" name="om_tipo" value="externa" onclick="alternarOM()">
+          🌐 Externa (militar de outra OM)
+        </label>
+      </div>
+    </div>
+
+    <!-- Caso INTERNO -->
+    <div id="campos-interna" class="form-group">
+      <label for="militar_id">Militar do Efetivo</label>
+      <select name="militar_id" id="militar_id">
+        <option value="">— Selecione —</option>
+        {% for m in militares %}
+        <option value="{{ m.id }}">
+          {{ m.graduacao or '?' }} {{ m.nome_guerra or m.cpf }}
+          {% if m.nome_completo %} — {{ m.nome_completo }}{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Caso EXTERNO -->
+    <div id="campos-externa" class="external-fields" style="display:none;">
+      <div class="form-group">
+        <label for="om_externa_nome">Nome da OM Externa</label>
+        <input type="text" name="om_externa_nome" id="om_externa_nome"
+               placeholder="Ex.: 5º GAC AP, 15º BIL, etc.">
+      </div>
+      <div style="display:grid; grid-template-columns: 140px 160px 1fr 160px; gap: 8px;">
+        <div class="form-group">
+          <label>Graduação</label>
+          <input type="text" name="recebedor_grad" placeholder="Ex.: 1º Sgt">
+        </div>
+        <div class="form-group">
+          <label>Nome de Guerra</label>
+          <input type="text" name="recebedor_nome_guerra" placeholder="OLIVEIRA">
+        </div>
+        <div class="form-group">
+          <label>Nome Completo</label>
+          <input type="text" name="recebedor_nome_completo">
+        </div>
+        <div class="form-group">
+          <label>CPF</label>
+          <input type="text" name="recebedor_cpf" placeholder="00000000000" maxlength="14">
+        </div>
+      </div>
+    </div>
+
+    <!-- Finalidade -->
+    <div class="form-group">
+      <label for="finalidade">Finalidade / Justificativa</label>
+      <input type="text" name="finalidade" id="finalidade"
+             placeholder="Ex.: Operação 02/MAI, Treinamento de campanha, etc.">
+    </div>
+
+    <!-- Itens cautelados -->
+    <h4 style="color:var(--verde-escuro); margin: 18px 0 8px; font-size:13px; text-transform:uppercase; border-top:1px solid var(--borda); padding-top: 14px;">Itens Cautelados <span style="color:var(--vermelho);">*</span></h4>
+
+    <div id="itens-container">
+      <!-- Linha modelo (pelo menos uma) -->
+      <div class="item-row" data-row>
+        <div>
+          <label>Material</label>
+          <select name="material_id[]" required onchange="atualizarDispRow(this)">
+            <option value="">— Selecione —</option>
+            {% for mat in materiais %}
+            <option value="{{ mat.id }}" data-disp="{{ mat.disponivel }}" data-nome="{{ mat.nomenclatura }}">
+              {{ mat.nomenclatura }}
+              {% if mat.prateleira %} (prat. {{ mat.prateleira }}){% endif %}
+              — {{ mat.disponivel }} disp.
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>Qtd</label>
+          <input type="number" name="quantidade[]" value="1" min="1" required>
+        </div>
+        <div>
+          <label>Disponível</label>
+          <input type="text" class="disp-display" value="—" readonly
+                 style="background: var(--bege); text-align: center;">
+        </div>
+        <div>
+          <label>Observação</label>
+          <input type="text" name="obs_item[]" placeholder="Ex.: 2ª classe, novo, etc.">
+        </div>
+        <div>
+          <button type="button" class="btn-remover" onclick="removerLinha(this)" title="Remover item">×</button>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="btn btn-secondary btn-small" onclick="adicionarLinha()" style="margin-top:8px;">
+      + Adicionar item
+    </button>
+
+    <!-- Obs gerais -->
+    <div class="form-group" style="margin-top: 16px;">
+      <label for="obs_geral">Observações Gerais</label>
+      <textarea name="obs_geral" id="obs_geral" rows="2"
+                placeholder="Detalhes adicionais sobre esta cautela"></textarea>
+    </div>
+
+    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px;">
+      <a href="{{ url_for('cautelas.lista') }}" class="btn btn-secondary">Cancelar</a>
+      <button type="submit" class="btn btn-primary">📋 Criar Cautela</button>
+    </div>
+  </div>
+</form>
+
+<script>
+function alternarOM() {
+  const tipo = document.querySelector('input[name="om_tipo"]:checked').value;
+  document.getElementById('campos-interna').style.display = (tipo === 'interna') ? 'block' : 'none';
+  document.getElementById('campos-externa').style.display = (tipo === 'externa') ? 'block' : 'none';
+  // toggle required
+  document.getElementById('militar_id').required = (tipo === 'interna');
+}
+
+function atualizarDispRow(select) {
+  const row = select.closest('[data-row]');
+  const opt = select.options[select.selectedIndex];
+  const disp = opt.dataset.disp || '—';
+  row.querySelector('.disp-display').value = disp;
+}
+
+function adicionarLinha() {
+  const container = document.getElementById('itens-container');
+  const modelo = container.querySelector('[data-row]');
+  const novo = modelo.cloneNode(true);
+  // Limpa valores
+  novo.querySelector('select').selectedIndex = 0;
+  novo.querySelector('input[name="quantidade[]"]').value = 1;
+  novo.querySelector('.disp-display').value = '—';
+  novo.querySelector('input[name="obs_item[]"]').value = '';
+  container.appendChild(novo);
+}
+
+function removerLinha(btn) {
+  const container = document.getElementById('itens-container');
+  const rows = container.querySelectorAll('[data-row]');
+  if (rows.length <= 1) {
+    alert('Mantenha pelo menos um item.');
+    return;
+  }
+  btn.closest('[data-row]').remove();
+}
+</script>
+{% endblock %}

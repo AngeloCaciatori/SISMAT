@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Resetar Senha{% endblock %}
+
+{% block content %}
+<h1 class="page-title">🔑 Resetar Senha</h1>
+<div class="page-subtitle">Operador: <strong>{{ op.login }}</strong></div>
+
+<div class="panel" style="padding: 24px; max-width: 600px;">
+  <div class="info-box">
+    <strong>Atenção:</strong> esta ação irá gerar uma nova senha temporária.
+    A senha deve ser <em>anotada e entregue presencialmente</em> ao operador.
+    Ele será obrigado a trocá-la no próximo login.
+  </div>
+
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-group">
+      <label for="nova_senha">Nova Senha Temporária</label>
+      <div style="display: flex; gap: 8px;">
+        <input type="text" name="nova_senha" id="nova_senha"
+               value="{{ senha_sugerida }}" minlength="6" required
+               style="flex: 1; font-family: 'Courier New', monospace; font-size: 16px;">
+        <button type="button" class="btn btn-secondary btn-small"
+                onclick="document.getElementById('nova_senha').value='{{ senha_sugerida }}'">
+          🔄 Sugerir outra
+        </button>
+      </div>
+      <div class="hint">
+        Mínimo 6 caracteres. Caracteres confusos (0/O, 1/l/I) foram evitados na sugestão.
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
+      <a href="{{ url_for('operadores.lista') }}" class="btn btn-secondary">Cancelar</a>
+      <button type="submit" class="btn btn-primary">Confirmar Reset</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

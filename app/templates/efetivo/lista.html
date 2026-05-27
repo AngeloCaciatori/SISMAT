@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Efetivo{% endblock %}
+
+{% block head_extra %}
+<style>
+  .avatar-mini {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: var(--bege); color: var(--verde-escuro);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 12px;
+    overflow: hidden; flex-shrink: 0;
+  }
+  .avatar-mini img { width: 100%; height: 100%; object-fit: cover; }
+  tr.linha-excluido { opacity: 0.65; font-style: italic; }
+  tr.linha-excluido td:first-child { border-left: 3px solid var(--vermelho); }
+  .countdown {
+    display: inline-block; padding: 2px 6px; border-radius: 10px;
+    font-size: 10px; font-weight: bold; margin-left: 4px;
+  }
+  .countdown.normal { background: #f5e6b3; color: #7d5a00; }
+  .countdown.urgente { background: #f0c5c5; color: #6b1e1e; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Efetivo</h1>
+<div class="page-subtitle">Militares cadastrados — Bia C AD/5</div>
+
+<div class="stats-row">
+  <div class="stat-card"><div class="valor">{{ total }}</div><div class="rotulo">Total no Efetivo</div></div>
+  <div class="stat-card"><div class="valor">{{ com_foto_count }}</div><div class="rotulo">Com Foto</div></div>
+  <div class="stat-card"><div class="valor">{{ com_medidas_count }}</div><div class="rotulo">Com Medidas</div></div>
+  <div class="stat-card"><div class="valor">{{ excluidos_count }}</div><div class="rotulo">Excluídos (≤{{ prazo_exclusao }}d)</div></div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h3>Lista do Efetivo</h3>
+    <form method="GET" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <input type="text" name="q" value="{{ busca }}" class="search-box"
+             placeholder="Buscar nome, guerra ou CPF...">
+      <select name="graduacao" class="search-box" style="min-width:140px;" onchange="this.form.submit()">
+        <option value="">Todas as graduações</option>
+        {% for g in graduacoes %}
+        <option value="{{ g }}" {% if graduacao == g %}selected{% endif %}>{{ g }}</option>
+        {% endfor %}
+      </select>
+      <select name="com_foto" class="search-box" style="min-width:120px;" onchange="this.form.submit()">
+        <option value="">Foto: todos</option>
+        <option value="sim" {% if com_foto == 'sim' %}selected{% endif %}>Com foto</option>
+        <option value="nao" {% if com_foto == 'nao' %}selected{% endif %}>Sem foto</option>
+      </select>
+      <label style="font-size:12px; color:var(--texto-claro); display:flex; align-items:center; gap:4px;">
+        <input type="checkbox" name="incluir_excluidos" value="1"
+               {% if incluir_excluidos %}checked{% endif %} onchange="this.form.submit()">
+        Mostrar excluídos
+      </label>
+      <button type="submit" class="btn btn-secondary btn-small">Filtrar</button>
+      <a href="{{ url_for('efetivo.novo') }}" class="btn btn-primary btn-small">+ Novo Militar</a>
+    </form>
+  </div>
+  <div style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:50px;">Foto</th>
+        <th style="width:90px;">Grad.</th>
+        <th>Nome de Guerra</th>
+        <th>Nome Completo</th>
+        <th>CPF</th>
+        <th style="text-align:right;">Ant.</th>
+        <th>OM</th>
+        <th>Status</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in militares %}
+      <tr class="{% if m.excluido %}linha-excluido{% endif %}">
+        <td>
+          <div class="avatar-mini">
+            {% if m.foto_path %}
+              <img src="{{ url_for('static', filename='uploads/' + m.foto_path) }}" alt="">
+            {% elif m.nome_guerra %}{{ m.nome_guerra[:2] | upper }}
+            {% else %}—{% endif %}
+          </div>
+        </td>
+        <td><strong>{{ m.graduacao or '—' }}</strong></td>
+        <td><strong>{{ m.nome_guerra or '—' }}</strong></td>
+        <td style="font-size:12px;">{{ m.nome_completo or '—' }}</td>
+        <td style="font-size:12px; font-family:'Courier New',monospace;">{{ m.cpf }}</td>
+        <td style="text-align:right;">{{ m.antiguidade if m.antiguidade else '—' }}</td>
+        <td style="font-size:12px;">{{ m.om }}</td>
+        <td>
+          {% if m.excluido %}
+            <span class="tag tag-vermelho">Excluído</span>
+            {% set rest = info_excluidos.get(m.id) %}
+            {% if rest is not none %}
+            <span class="countdown {{ 'urgente' if rest <= 7 else 'normal' }}">
+              {{ rest }}d
+            </span>
+            {% endif %}
+          {% elif m.medidas %}
+            <span class="tag tag-verde">OK</span>
+          {% else %}
+            <span class="tag tag-amarelo">Sem medidas</span>
+          {% endif %}
+        </td>
+        <td class="table-actions">
+          <a href="{{ url_for('efetivo.detalhe', mil_id=m.id) }}" class="btn btn-small btn-secondary">👁 Ver</a>
+          <a href="{{ url_for('efetivo.editar', mil_id=m.id) }}" class="btn btn-small btn-secondary">Editar</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" style="text-align:center; padding:30px; color:var(--texto-claro);">
+        Nenhum militar encontrado com esses filtros.
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <div style="padding:10px 16px; font-size:12px; color:var(--texto-claro); border-top:1px solid var(--borda); background:var(--areia);">
+    Mostrando <strong>{{ militares|length }}</strong> militar(es)
+    {% if busca or graduacao or com_foto or incluir_excluidos %}(filtrado){% endif %}
+    · ordenado por hierarquia militar e antiguidade
+  </div>
+</div>
+
+<div class="info-box" style="margin-top:14px;">
+  <strong>Soft delete com prazo:</strong> militares excluídos podem ser <em>restaurados em até
+  {{ prazo_exclusao }} dias</em>. A coluna Status mostra os dias restantes (vermelho se restam ≤ 7).
+  Após o prazo, admin pode apagar definitivamente — exceto se houver histórico de cautelas.
+</div>
+
+<div style="margin-top: 16px;">
+  <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-small">← Voltar ao Painel</a>
+</div>
+{% endblock %}

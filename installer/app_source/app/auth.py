@@ -1,0 +1,17 @@
+"""Decoradores de autenticação."""
+
+from functools import wraps
+from flask import abort
+from flask_login import current_user
+
+
+def admin_required(f):
+    """Permite acesso somente a operadores com nível Administrador."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not current_user.is_authenticated:
+            abort(401)
+        if not current_user.is_admin:
+            abort(403)
+        return f(*args, **kwargs)
+    return wrapper

@@ -1,0 +1,67 @@
+{% extends "mobile/base_mobile.html" %}
+
+{% block title %}Efetivo{% endblock %}
+{% block page_title %}Efetivo{% endblock %}
+{% block back_url %}{{ url_for('main.dashboard') }}{% endblock %}
+
+{% block content %}
+
+<div class="search-mobile">
+  <input type="search" id="busca" placeholder="Buscar nome, guerra ou graduação..." autocomplete="off">
+</div>
+
+{% if current_user.is_admin %}
+<div style="padding: 8px 12px 0;">
+  <a href="{{ url_for('efetivo.novo') }}" class="btn-mobile btn-primary">
+    &#43; Novo Militar
+  </a>
+</div>
+{% endif %}
+
+<div class="lista-mobile" id="lista-militares">
+  {% for m in militares %}
+  <div class="card-mobile item-militar"
+       data-busca="{{ m.nome_guerra|lower }} {{ m.nome_completo|lower }} {{ m.graduacao|lower }}">
+    <div class="card-mobile-header">
+      <div>
+        <div class="card-mobile-title">{{ m.nome_guerra }}</div>
+        <div class="card-mobile-sub">{{ m.graduacao }} &middot; {{ m.nome_completo }}</div>
+      </div>
+      {% if m.excluido %}
+        <span class="badge-mobile badge-vermelho">Excluído</span>
+      {% else %}
+        <span class="badge-mobile badge-verde">Ativo</span>
+      {% endif %}
+    </div>
+    {% if m.telefone_1 %}
+    <div class="card-mobile-row">
+      <span class="label">Telefone</span>
+      <span class="value">{{ m.telefone_1 }}</span>
+    </div>
+    {% endif %}
+    <div style="margin-top:10px;">
+      <a href="{{ url_for('efetivo.detalhe', mil_id=m.id) }}" class="btn-mobile btn-secondary" style="height:38px; font-size:13px;">
+        Ver detalhes
+      </a>
+    </div>
+  </div>
+  {% else %}
+  <div class="card-mobile" style="text-align:center; color:#9ca3af;">Nenhum militar cadastrado.</div>
+  {% endfor %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+var input = document.getElementById('busca');
+if (input) {
+  input.addEventListener('input', function() {
+    var q = this.value.toLowerCase().trim();
+    document.querySelectorAll('.item-militar').forEach(function(el) {
+      el.style.display = (!q || el.dataset.busca.includes(q)) ? '' : 'none';
+    });
+  });
+}
+</script>
+{% endblock %}

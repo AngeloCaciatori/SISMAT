@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Cautela {{ cautela.numero }}{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+  <div>
+    <h1 class="page-title">
+      Cautela {{ cautela.numero }}
+      {% if cautela.devolvida %}
+        <span class="tag tag-cinza">Devolvida</span>
+      {% elif cautela.atrasada %}
+        <span class="tag tag-vermelho">Atrasada</span>
+      {% else %}
+        <span class="tag tag-verde">Ativa</span>
+      {% endif %}
+    </h1>
+    <div class="page-subtitle">
+      {% if cautela.om_tipo == 'interna' %}
+        🏠 OM Interna · {{ NOME_INSTITUICAO }}
+      {% else %}
+        🌐 OM Externa{% if cautela.om_externa_nome %} — {{ cautela.om_externa_nome }}{% endif %}
+      {% endif %}
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a href="{{ url_for('cautelas.imprimir', cautela_id=cautela.id) }}" target="_blank"
+       class="btn btn-primary btn-small">📥 Imprimir Ficha (FIDU)</a>
+    {% if not cautela.devolvida %}
+    <form method="POST" action="{{ url_for('cautelas.devolver', cautela_id=cautela.id) }}"
+          style="display:inline;" onsubmit="return confirm('Confirmar devolução desta cautela?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-primary btn-small">↺ Devolver</button>
+    </form>
+    {% else %}
+      {% if current_user.is_admin %}
+      <form method="POST" action="{{ url_for('cautelas.reabrir', cautela_id=cautela.id) }}"
+            style="display:inline;" onsubmit="return confirm('Reabrir cautela já devolvida?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-secondary btn-small">⟲ Reabrir</button>
+      </form>
+      {% endif %}
+    {% endif %}
+    {% if current_user.is_admin and not cautela.devolvida %}
+    <form method="POST" action="{{ url_for('cautelas.cancelar', cautela_id=cautela.id) }}"
+          style="display:inline;"
+          onsubmit="return confirm('CANCELAR esta cautela permanentemente? (apaga, não devolve)');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-danger btn-small">🗑 Cancelar</button>
+    </form>
+    {% endif %}
+    <a href="{{ url_for('cautelas.lista') }}" class="btn btn-secondary btn-small">← Lista</a>
+  </div>
+</div>
+
+<div class="panel" style="padding: 24px; margin-top: 16px;">
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <!-- Recebedor -->
+    <div>
+      <h4 style="color:var(--verde-escuro); margin-bottom:8px; font-size:13px; text-transform:uppercase;">Recebedor</h4>
+      <table style="width:100%; font-size:14px;">
+        {% if cautela.militar %}
+        <tr><td style="width:140px; color:var(--texto-claro); font-size:12px;">Graduação:</td>
+            <td><strong>{{ cautela.militar.graduacao or '—' }}</strong></td></tr>
+        <tr><td style="color:var(--texto-claro); font-size:12px;">Nome de Guerra:</td>
+            <td><strong>{{ cautela.militar.nome_guerra or '—' }}</strong></td></tr>
+        <tr><td style="color:var(--texto-claro); font-size:12px;">Nome Completo:</td>
+            <td>{{ cautela.militar.nome_completo or '—' }}</td></tr>
+        <tr><td style="color:var(--texto-claro); font-size:12px;">CPF:</td>
+            <td style="font-family:'Courier New',monospace;">{{ cautela.militar.cpf }}</td></tr>
+        <tr><td style="color:var(--texto-claro); font-size:12px;">OM:</td>
+            <td>{{ cautela.militar.om }}</td></tr>
+        <tr><td colspan="2" style="padding-top: 8px;">
+          <a href="{{ url_for('efetivo.detalhe', mil_id=cautela.militar.id) }}" class="btn btn-small btn-secondary">Ver perfil →</a>
+        </td></tr>
+        {% else %}
+        <tr><td style="width:140px; color:var(--texto-claro); font-size:12px;">Graduação:</td>
+            <td><strong>{{ cautela.recebedor_grad or '—' }}</strong></td></tr>
+        <tr><td style="color:var(--texto-claro); font-size:12px;">Nome de Guerra:</td>
+            <td><strong>{{ cautela.recebedor_nome_guerra or '—' }}</strong></td></tr>
+        <tr><td style="color:var(--texto-claro); font-size:12px;">Nome Completo:</td>
+            <td>{{ cautela.recebedor_nome_completo or '—' }}</td></tr>
+        <tr><td style="color:var(--texto-claro); font-size:12px;">CPF:</td>
+            <td style="font-family:'Courier New',monospace;">{{ cautela.recebedor_cpf or '—' }}</td></tr>
+        <tr><td style="color:var(--texto-claro); font-size:12px;">OM:</td>
+            <td>{{ cautela.om_externa_nome or 'OM Externa' }}</td></tr>
+        {% endif %}
+      </table>
+    </div>
+
+    <!-- Dados da cautela -->
+    <div>
+      <h4 style="color:var(--verde-escuro); margin-bottom:8px; font-size:13px; text-transform:uppercase;">Cautela</h4>
+      <table style="width:100%; font-size:14px;">
+        <tr><td style="width:140px; color:var(--texto-claro); font-size:12px;">Número:</td>
+            <td><strong style="font-family:'Courier New',monospace;">{{ cautela.numero }}</strong></td></tr>
+        <tr><td style="color:var(--texto-claro); font-size:12px;">Data:</td>
+            <td>{{ cautela.data_cautela | data_br }}</td></tr>
+        <tr><td style="color:var(--texto-claro); font-size:12px;">Devolução prevista:</td>
+            <td>{{ cautela.devolucao_prevista | data_br if cautela.devolucao_prevista else '—' }}</td></tr>
+        {% if cautela.devolvida %}
+        <tr><td style="color:var(--texto-claro); font-size:12px;">Devolvida em:</td>
+            <td><strong>{{ cautela.devolvida_em | data_br }}</strong></td></tr>
+        <tr><td style="color:var(--texto-claro); font-size:12px;">Descautelado por:</td>
+            <td>{{ devolvido_por or '—' }}</td></tr>
+        {% endif %}
+        <tr><td style="color:var(--texto-claro); font-size:12px;">Cautelado por:</td>
+            <td>
+              {% if cautela.operador %}
+                {% if cautela.operador.militar %}
+                  {{ cautela.operador.militar.graduacao or '' }} {{ cautela.operador.militar.nome_guerra or '' }}
+                  <span style="font-size:11px; color:var(--texto-claro);">({{ cautela.operador.login }})</span>
+                {% else %}
+                  {{ cautela.operador.login }}
+                {% endif %}
+              {% else %}—{% endif %}
+            </td></tr>
+        <tr><td style="color:var(--texto-claro); font-size:12px;">Criada em:</td>
+            <td style="font-size:12px;">{{ cautela.criada_em.strftime('%d/%m/%Y %H:%M') if cautela.criada_em else '—' }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  {% if cautela.finalidade %}
+  <div style="margin-top: 16px; padding: 12px; background: var(--areia); border-radius: 4px; border-left: 3px solid var(--khaki);">
+    <strong style="font-size:12px; color:var(--verde-escuro); text-transform:uppercase;">Finalidade:</strong>
+    <span style="margin-left: 6px;">{{ cautela.finalidade }}</span>
+  </div>
+  {% endif %}
+
+  <!-- Itens -->
+  <h4 style="color:var(--verde-escuro); margin: 24px 0 8px; font-size:13px; text-transform:uppercase; border-top:1px solid var(--borda); padding-top: 16px;">📦 Itens ({{ cautela.itens|length }})</h4>
+  <table>
+    <thead>
+      <tr>
+        <th>Cód.</th>
+        <th>Nomenclatura</th>
+        <th>Tipo</th>
+        <th>Prateleira</th>
+        <th style="text-align:right;">Qtd</th>
+        <th>Observação</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in cautela.itens %}
+      <tr>
+        <td>{{ item.material.id if item.material else '?' }}</td>
+        <td><strong>{{ item.material.nomenclatura if item.material else '(material removido)' }}</strong></td>
+        <td>{% if item.material %}<span class="tag tag-cinza">{{ item.material.tipo }}</span>{% endif %}</td>
+        <td>{{ item.material.prateleira if item.material else '—' }}</td>
+        <td style="text-align:right; font-weight:bold;">{{ item.quantidade }}</td>
+        <td style="font-size:12px;">{{ item.obs or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if cautela.obs_geral %}
+  <div style="margin-top: 16px; padding: 12px; background: var(--areia); border-radius: 4px;">
+    <strong style="font-size:12px; color:var(--verde-escuro); text-transform:uppercase;">Observações:</strong>
+    <div style="margin-top: 4px; font-size: 13px; white-space: pre-wrap;">{{ cautela.obs_geral }}</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

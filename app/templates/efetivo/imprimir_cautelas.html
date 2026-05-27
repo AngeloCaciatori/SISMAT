@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Ficha de Cautela — {{ militar.nome_guerra or militar.cpf }}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Times New Roman', serif;
+    background: #fff; padding: 12mm; color: #000; font-size: 11pt;
+  }
+  .topo-tela {
+    background: #1e3a5f; color: #fff;
+    padding: 10px 16px; margin: -12mm -12mm 12px -12mm;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  .topo-tela .btn-imprimir {
+    background: #c9a227; color: #1e3a5f; border: none; padding: 6px 16px;
+    border-radius: 4px; font-weight: bold; cursor: pointer;
+  }
+  .topo-tela .btn-fechar {
+    background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.6);
+    padding: 6px 16px; border-radius: 4px; cursor: pointer;
+  }
+
+  .cabecalho {
+    text-align: center; border-bottom: 2px solid #000;
+    padding-bottom: 10px; margin-bottom: 12px;
+  }
+  .cabecalho h1 { font-size: 17pt; }
+  .cabecalho h2 { font-size: 13pt; font-weight: normal; font-style: italic; }
+
+  .militar-row {
+    border: 1px solid #000; margin: 12px 0;
+    display: grid; grid-template-columns: 100px 100px 1fr 130px;
+    align-items: stretch;
+  }
+  .militar-row > div {
+    padding: 8px 12px; border-right: 1px solid #000;
+    display: flex; align-items: center;
+  }
+  .militar-row > div:last-child { border-right: 0; }
+  .militar-row .rotulo { background: #f0f0f0; font-weight: bold; font-size: 10pt; }
+  .militar-row .valor { font-weight: bold; }
+
+  .secao {
+    text-align: center; font-weight: bold; font-size: 12pt;
+    background: #f0f0f0; padding: 5px; margin-top: 10px;
+    border-top: 1px solid #000; border-bottom: 1px solid #000;
+  }
+  .categoria-titulo {
+    text-align: center; font-weight: bold; font-size: 11pt;
+    background: #e0e0e0; padding: 4px; border-bottom: 1px solid #999;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  table th {
+    background: #f5f5f5; padding: 4px 8px; font-size: 9pt;
+    text-align: left; border: 1px solid #999;
+  }
+  table td {
+    padding: 4px 8px; font-size: 10pt; border: 1px solid #999;
+    vertical-align: top;
+  }
+  table td.center { text-align: center; }
+  table td.qtd { width: 50px; text-align: center; font-weight: bold; }
+  table td.data { width: 90px; }
+  table td.obs { width: 120px; font-size: 9pt; color: #444; }
+
+  .declaracao {
+    margin-top: 18px; padding: 10px 0; font-size: 10pt;
+    text-align: justify;
+  }
+  .local-data {
+    margin-top: 24px; text-align: center; font-size: 10pt;
+  }
+  .assinatura-final {
+    margin-top: 60px; text-align: center;
+    border-top: 1px solid #000; padding-top: 6px;
+    max-width: 360px; margin-left: auto; margin-right: auto;
+    font-style: italic; font-weight: bold; font-size: 11pt;
+  }
+
+  .vazio {
+    padding: 30px; text-align: center; color: #888; font-style: italic;
+  }
+
+  @media print {
+    body { padding: 8mm; }
+    .topo-tela { display: none !important; }
+    @page { size: A4; margin: 12mm; }
+    table { font-size: 9pt; }
+    thead { display: table-header-group; }
+    tr { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topo-tela">
+  <div>
+    <strong>SISMAT — Ficha de Cautela</strong>
+    <span style="opacity:0.85; font-size:13px; margin-left:8px;">{{ militar.graduacao or '' }} {{ militar.nome_guerra or militar.cpf }}</span>
+  </div>
+  <div style="display:flex; gap:8px;">
+    <button class="btn-imprimir" onclick="window.print()">🖨 Imprimir</button>
+    <button class="btn-fechar" onclick="window.close()">Fechar</button>
+  </div>
+</div>
+
+<div class="cabecalho">
+  <h1>BATERIA DE COMANDO DA AD/5</h1>
+  <h2>Ficha Individual de Distribuição de Uniformes (FIDU)</h2>
+</div>
+
+<div class="militar-row">
+  <div class="rotulo">MILITAR</div>
+  <div class="valor" style="font-style: italic;">{{ militar.graduacao or '—' }}</div>
+  <div class="valor">{{ militar.nome_guerra or '—' }}</div>
+  <div style="font-size: 10pt; font-weight: normal;">{{ total_itens }} item(ns)</div>
+</div>
+
+<div class="secao">1. FARDAMENTO / EQUIPAMENTO / MATERIAL / OUTROS</div>
+
+{% for tipo, itens in grupos %}
+<div class="categoria-titulo">{{ tipo }}</div>
+<table>
+  <thead>
+    <tr>
+      <th style="width:50px; text-align:center;">Qtd</th>
+      <th>Nomenclatura</th>
+      <th style="width:90px;">Data</th>
+      <th style="width:140px;">Observação</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in itens %}
+    <tr>
+      <td class="qtd">{{ item.qtd }}</td>
+      <td><strong>{{ item.nomenclatura }}</strong></td>
+      <td class="data">{{ item.data | data_br if item.data else '—' }}</td>
+      <td class="obs">{{ item.obs }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="vazio">
+  Nenhum material cautelado para este militar no momento.
+</div>
+{% endfor %}
+
+<div class="declaracao">
+  [Declaro que recebi o material acima especificado sem alteração, e estou ciente que deverei
+  restituir ou indenizar qualquer material extraviado sob minha responsabilidade]
+</div>
+
+<div class="local-data">
+  Quartel em Curitiba/PR, {% set hoje = ''|string %}{{ "" }}<span id="data-impressao"></span>
+</div>
+
+<div class="assinatura-final">
+  {{ (militar.nome_completo or militar.nome_guerra or militar.cpf) | upper }} — {{ militar.graduacao or '' }}
+</div>
+
+<script>
+  // Insere a data por extenso no momento da impressão
+  const meses = ['janeiro','fevereiro','março','abril','maio','junho',
+                 'julho','agosto','setembro','outubro','novembro','dezembro'];
+  const dias = ['domingo','segunda-feira','terça-feira','quarta-feira',
+                'quinta-feira','sexta-feira','sábado'];
+  const d = new Date();
+  document.getElementById('data-impressao').textContent =
+    dias[d.getDay()] + ', ' + d.getDate() + ' de ' + meses[d.getMonth()] + ' de ' + d.getFullYear();
+
+  setTimeout(function() { window.print(); }, 400);
+</script>
+</body>
+</html>

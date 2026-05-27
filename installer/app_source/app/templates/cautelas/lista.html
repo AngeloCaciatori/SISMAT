@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Cautelas{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Cautelas</h1>
+<div class="page-subtitle">Empréstimos de material — registros e devoluções</div>
+
+<div class="stats-row">
+  <div class="stat-card"><div class="valor">{{ total_ativas }}</div><div class="rotulo">Ativas</div></div>
+  <div class="stat-card"><div class="valor">{{ total_atrasadas }}</div><div class="rotulo">Atrasadas</div></div>
+  <div class="stat-card"><div class="valor">{{ total_devolvidas_30d }}</div><div class="rotulo">Devolvidas (30d)</div></div>
+  <div class="stat-card"><div class="valor">{{ total_geral }}</div><div class="rotulo">Total Histórico</div></div>
+</div>
+
+<div class="tab-nav-sismat" style="display:flex; gap:2px; background:var(--bege); padding:4px; border-radius:6px; margin-bottom:16px;">
+  <a href="{{ url_for('cautelas.lista', status='ativas') }}"
+     style="padding:8px 14px; border-radius:4px; text-decoration:none; font-size:13px; {% if status == 'ativas' %}background:var(--verde-medio); color:#fff;{% else %}color:var(--texto);{% endif %}">
+    Ativas ({{ total_ativas }})
+  </a>
+  <a href="{{ url_for('cautelas.lista', status='atrasadas') }}"
+     style="padding:8px 14px; border-radius:4px; text-decoration:none; font-size:13px; {% if status == 'atrasadas' %}background:var(--vermelho); color:#fff;{% else %}color:var(--texto);{% endif %}">
+    Atrasadas ({{ total_atrasadas }})
+  </a>
+  <a href="{{ url_for('cautelas.lista', status='devolvidas') }}"
+     style="padding:8px 14px; border-radius:4px; text-decoration:none; font-size:13px; {% if status == 'devolvidas' %}background:var(--verde-medio); color:#fff;{% else %}color:var(--texto);{% endif %}">
+    Devolvidas
+  </a>
+  <a href="{{ url_for('cautelas.lista', status='todas') }}"
+     style="padding:8px 14px; border-radius:4px; text-decoration:none; font-size:13px; {% if status == 'todas' %}background:var(--verde-medio); color:#fff;{% else %}color:var(--texto);{% endif %}">
+    Todas
+  </a>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h3>{{ cautelas|length }} cautela(s)</h3>
+    <form method="GET" style="display:flex; gap:8px; flex-wrap:wrap;">
+      <input type="hidden" name="status" value="{{ status }}">
+      <input type="text" name="q" value="{{ busca }}" class="search-box"
+             placeholder="Buscar Nº, militar, CPF, OM externa...">
+      <button type="submit" class="btn btn-secondary btn-small">Filtrar</button>
+      <a href="{{ url_for('cautelas.nova') }}" class="btn btn-primary btn-small">+ Nova Cautela</a>
+    </form>
+  </div>
+
+  <div style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>Nº</th>
+        <th>Grad.</th>
+        <th>Recebedor</th>
+        <th>OM</th>
+        <th>Itens</th>
+        <th>Data</th>
+        <th>Devolução</th>
+        <th>Status</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in cautelas %}
+      <tr>
+        <td><strong style="font-family:'Courier New',monospace;">{{ c.numero }}</strong></td>
+        <td>
+          {% if c.militar %}{{ c.militar.graduacao or '—' }}
+          {% else %}{{ c.recebedor_grad or '—' }}{% endif %}
+        </td>
+        <td>
+          <strong>
+          {% if c.militar %}{{ c.militar.nome_guerra or c.militar.cpf }}
+          {% else %}{{ c.recebedor_nome_guerra or '—' }}{% endif %}
+          </strong>
+        </td>
+        <td>
+          {% if c.om_tipo == 'interna' %}
+            <span class="tag tag-verde">Interna</span>
+          {% else %}
+            <span class="tag tag-amarelo">Externa</span>
+            <small style="display:block; font-size:10px; color:var(--texto-claro);">{{ c.om_externa_nome or '' }}</small>
+          {% endif %}
+        </td>
+        <td style="font-size:12px; max-width:280px;">
+          {% set primeiros = c.itens[:2] %}
+          {% for item in primeiros %}
+            {{ item.quantidade }}× {{ item.material.nomenclatura if item.material else '?' }}{% if not loop.last %},{% endif %}
+          {% endfor %}
+          {% if c.itens|length > 2 %}
+            <em style="color:var(--texto-claro);"> + {{ c.itens|length - 2 }}</em>
+          {% endif %}
+        </td>
+        <td>{{ c.data_cautela | data_br }}</td>
+        <td>
+          {% if c.devolvida %}
+            {{ c.devolvida_em | data_br }}
+          {% else %}
+            {{ c.devolucao_prevista | data_br if c.devolucao_prevista else '—' }}
+          {% endif %}
+        </td>
+        <td>
+          {% if c.devolvida %}
+            <span class="tag tag-cinza">Devolvida</span>
+          {% elif c.atrasada %}
+            <span class="tag tag-vermelho">Atrasada</span>
+          {% else %}
+            <span class="tag tag-verde">Ativa</span>
+          {% endif %}
+        </td>
+        <td class="table-actions">
+          <a href="{{ url_for('cautelas.detalhe', cautela_id=c.id) }}"
+             class="btn btn-small btn-secondary">👁 Ver</a>
+          {% if not c.devolvida %}
+          <form method="POST" action="{{ url_for('cautelas.devolver', cautela_id=c.id) }}"
+                style="display:inline;" onsubmit="return confirm('Confirmar devolução da cautela {{ c.numero }}?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-small btn-primary">↺ Devolver</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" style="text-align:center; padding:30px; color:var(--texto-claro);">
+        Nenhuma cautela encontrada com esse filtro.
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <div style="padding:10px 16px; font-size:12px; color:var(--texto-claro); border-top:1px solid var(--borda); background:var(--areia);">
+    Mostrando {{ cautelas|length }} cautela(s){% if busca %} (busca: "{{ busca }}"){% endif %}
+    {% if cautelas|length == 200 %} (limite de 200 mais recentes){% endif %}
+  </div>
+</div>
+
+<div class="info-box" style="margin-top:14px;">
+  <strong>Como funciona:</strong> cada cautela registra um conjunto de materiais entregues a um
+  militar (interno ou de outra OM). Use <strong>+ Nova Cautela</strong> para criar; o número
+  é gerado automaticamente no formato <code>NNNN/AAAA</code>. Cautelas legadas importadas do
+  Access antigo aparecem com prefixo <code>L-</code>.
+</div>
+
+<div style="margin-top: 16px;">
+  <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-small">← Voltar ao Painel</a>
+</div>
+{% endblock %}

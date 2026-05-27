@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Material{% endblock %}
+
+{% block head_extra %}
+<style>
+  .acoes-bar {
+    position: sticky; bottom: 0;
+    background: var(--verde-escuro); color: #fff;
+    padding: 12px 20px; margin-top: 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap; z-index: 10;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.2); border-radius: 6px;
+  }
+  .acoes-bar strong { color: var(--khaki); }
+  .item-check { accent-color: var(--verde-medio); cursor: pointer; }
+  tr.linha-selecionada { background: rgba(30,58,95,0.08) !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Material</h1>
+<div class="page-subtitle">Material em carga, prateleiras e identificação SISCOFIS</div>
+
+<div class="stats-row">
+  <div class="stat-card"><div class="valor">{{ total_itens }}</div><div class="rotulo">Tipos de Material</div></div>
+  <div class="stat-card"><div class="valor">{{ '{:,}'.format(total_unidades).replace(',','.') }}</div><div class="rotulo">Total em Carga (un.)</div></div>
+  <div class="stat-card"><div class="valor">{{ '{:,}'.format(total_disponivel).replace(',','.') }}</div><div class="rotulo">Disponível</div></div>
+  <div class="stat-card"><div class="valor">{{ '{:,}'.format(total_cautelado).replace(',','.') }}</div><div class="rotulo">Cautelado</div></div>
+</div>
+
+<div class="tab-nav-sismat" style="display:flex; gap:2px; background:var(--bege); padding:4px; border-radius:6px; margin-bottom:16px;">
+  <a href="{{ url_for('material.lista') }}" style="background:var(--verde-medio); color:#fff; padding:8px 14px; border-radius:4px; text-decoration:none; font-size:13px;">Lista de Materiais</a>
+  <a href="{{ url_for('material.prateleira') }}" style="padding:8px 14px; border-radius:4px; text-decoration:none; font-size:13px; color:var(--texto);">📚 Ficha de Prateleira</a>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h3>Material em Carga</h3>
+    <form method="GET" style="display:flex; gap:8px; flex-wrap:wrap;">
+      <input type="text" name="q" value="{{ busca }}" class="search-box" placeholder="Buscar nomenclatura, ficha ou prateleira...">
+      <select name="tipo" class="search-box" style="min-width:140px;" onchange="this.form.submit()">
+        <option value="">Todos os tipos</option>
+        {% for t in tipos_disponiveis %}
+        <option value="{{ t }}" {% if tipo == t %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+      <select name="dependencia" class="search-box" style="min-width:160px;" onchange="this.form.submit()">
+        <option value="">Todas as reservas</option>
+        {% for d in deps_disponiveis %}
+        <option value="{{ d }}" {% if dependencia == d %}selected{% endif %}>{{ d }}</option>
+        {% endfor %}
+        <option value="sem" {% if dependencia == 'sem' %}selected{% endif %}>— Sem reserva</option>
+      </select>
+      <button type="submit" class="btn btn-secondary btn-small">Filtrar</button>
+      <a href="{{ url_for('material.novo') }}" class="btn btn-primary btn-small">+ Cadastrar</a>
+    </form>
+  </div>
+  <div style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:30px;"><input type="checkbox" class="item-check" onclick="marcarTodos(this.checked)"></th>
+        <th>Cód.</th>
+        <th>Ficha SISCOFIS</th>
+        <th>Nomenclatura</th>
+        <th>Tipo</th>
+        <th>Dependência</th>
+        <th>Prateleira</th>
+        <th style="text-align:right;">QTD</th>
+        <th style="text-align:right;">Caut.</th>
+        <th style="text-align:right;">Disp.</th>
+        <th>Valor Un.</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in materiais %}
+      {% set q_caut = cautelados.get(m.id, 0) %}
+      {% set q_disp = (m.qnt_siscofis or 0) - q_caut %}
+      <tr data-id="{{ m.id }}">
+        <td><input type="checkbox" class="item-check linha" value="{{ m.id }}" onclick="atualizarSelecao()"></td>
+        <td>{{ m.id }}</td>
+        <td style="max-width:160px; font-size:11px;">
+          {% if m.ficha_siscofis %}
+          <span title="{{ m.ficha_siscofis }}">{{ m.ficha_siscofis[:40] }}{% if m.ficha_siscofis|length > 40 %}…{% endif %}</span>
+          {% else %}<span style="color:var(--texto-claro);">—</span>{% endif %}
+        </td>
+        <td><strong>{{ m.nomenclatura }}</strong></td>
+        <td><span class="tag tag-cinza">{{ m.tipo }}</span></td>
+        <td>
+          {% if m.dependencia %}
+          <span class="tag {{ 'tag-azul' if 'RESERVA' in m.dependencia.upper() else 'tag-amarelo' }}">{{ m.dependencia }}</span>
+          {% else %}<span style="color:var(--texto-claro);">—</span>{% endif %}
+        </td>
+        <td>
+          {% if m.prateleira and m.prateleira != '0' %}<strong>{{ m.prateleira }}</strong>
+          {% else %}<span style="color:var(--texto-claro);">—</span>{% endif %}
+        </td>
+        <td style="text-align:right;">{{ m.qnt_siscofis or 0 }}</td>
+        <td style="text-align:right;">
+          {% if q_caut > 0 %}<span class="tag tag-amarelo">{{ q_caut }}</span>{% else %}0{% endif %}
+        </td>
+        <td style="text-align:right; font-weight:bold;">{{ q_disp }}</td>
+        <td>{{ m.valor_unitario | moeda }}</td>
+        <td class="table-actions">
+          <a href="{{ url_for('material.editar', mat_id=m.id) }}" class="btn btn-small btn-secondary">Editar</a>
+          <form method="POST" action="{{ url_for('material.remover', mat_id=m.id) }}" style="display:inline;" onsubmit="return confirm('Desativar o material {{ m.nomenclatura }}?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-small btn-danger">Remover</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="12" style="text-align:center; padding:30px; color:var(--texto-claro);">Nenhum material encontrado com esses filtros.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <div style="padding:10px 16px; font-size:12px; color:var(--texto-claro); border-top:1px solid var(--borda); background:var(--areia);">
+    Mostrando <strong>{{ materiais|length }}</strong> material(is){% if busca or tipo or dependencia %} (filtrado){% endif %}
+  </div>
+</div>
+
+<div class="acoes-bar">
+  <div>
+    <strong id="contador">0</strong> selecionado(s)
+    <span style="margin-left:8px; font-size:12px; opacity:0.85;">Marque os itens e gere a Lista de Conferência para imprimir.</span>
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <button type="button" class="btn btn-secondary btn-small" onclick="conferenciaFiltrada()">&#128203; Conferência (todos os filtrados)</button>
+    <button type="button" class="btn btn-secondary btn-small" onclick="conferenciaSelecionados()" id="btn-conf">&#128203; Conferência dos selecionados</button>
+    <button type="button" class="btn btn-primary btn-small" onclick="ondeEstaoSelecionados()" id="btn-onde">&#128269; Onde estão os selecionados</button>
+  </div>
+</div>
+
+<div class="info-box" style="margin-top:14px;">
+  <strong>Lista de Conferência:</strong> gera folha para contagem física do estoque (quantidade esperada vs. contagem real).
+  &nbsp;·&nbsp;
+  <strong>Onde estão:</strong> mostra quais militares estão com os itens selecionados, agrupado por tipo.
+</div>
+
+<div style="margin-top: 16px;">
+  <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-small">← Voltar ao Painel</a>
+</div>
+
+<script>
+function marcarTodos(estado) {
+  document.querySelectorAll('.item-check.linha').forEach(cb => {
+    cb.checked = estado;
+    cb.closest('tr').classList.toggle('linha-selecionada', estado);
+  });
+  atualizarSelecao();
+}
+function atualizarSelecao() {
+  let n = 0;
+  document.querySelectorAll('.item-check.linha').forEach(cb => {
+    cb.closest('tr').classList.toggle('linha-selecionada', cb.checked);
+    if (cb.checked) n++;
+  });
+  document.getElementById('contador').textContent = n;
+  document.getElementById('btn-conf').disabled  = (n === 0);
+  document.getElementById('btn-onde').disabled  = (n === 0);
+}
+function conferenciaSelecionados() {
+  const ids = Array.from(document.querySelectorAll('.item-check.linha:checked')).map(c => c.value);
+  if (!ids.length) { alert('Selecione pelo menos um item.'); return; }
+  window.open("{{ url_for('material.conferencia') }}?ids=" + ids.join(','), '_blank');
+}
+function conferenciaFiltrada() {
+  const params = new URLSearchParams(window.location.search);
+  window.open("{{ url_for('material.conferencia') }}?" + params.toString(), '_blank');
+}
+function ondeEstaoSelecionados() {
+  const ids = Array.from(document.querySelectorAll('.item-check.linha:checked')).map(c => c.value);
+  if (!ids.length) { alert('Selecione pelo menos um item.'); return; }
+  window.open("{{ url_for('material.onde_estao') }}?ids=" + ids.join(','), '_blank');
+}
+atualizarSelecao();
+</script>
+{% endblock %}

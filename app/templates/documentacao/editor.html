@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar: ' + nome if nome else 'Novo Documento' }}{% endblock %}
+
+{% block head_extra %}
+<style>
+  .editor-toolbar {
+    display: flex; flex-wrap: wrap; gap: 4px 6px;
+    padding: 10px 12px; background: #f0f3fa;
+    border: 1.5px solid var(--borda); border-bottom: none;
+    border-radius: 8px 8px 0 0;
+  }
+  .toolbar-grupo { display: flex; gap: 4px; align-items: center; }
+  .toolbar-sep { width:1px; background:var(--borda); margin:0 4px; align-self:stretch; min-height:28px; }
+  .tb {
+    background:#fff; border:1.5px solid var(--borda); border-radius:5px;
+    padding:5px 11px; cursor:pointer; font-size:13px; color:var(--texto-escuro);
+    transition:all .12s; font-family:inherit; line-height:1.2;
+    display:flex; align-items:center; gap:5px; white-space:nowrap; min-height:32px;
+  }
+  .tb:hover { background:var(--verde-escuro); color:#fff; border-color:var(--verde-escuro); }
+  .tb-label { font-size:11px; opacity:.75; }
+  .tb-select {
+    background:#fff; border:1.5px solid var(--borda); border-radius:5px;
+    padding:5px 8px; font-size:13px; color:var(--texto-escuro);
+    cursor:pointer; height:32px; font-family:inherit;
+  }
+  .editor-area {
+    min-height:460px; max-height:65vh; padding:20px 24px;
+    background:#fff; outline:none;
+    font-family:'Times New Roman',serif; font-size:12pt; line-height:1.7;
+    overflow-y:auto; border:1.5px solid var(--borda); border-radius:0 0 8px 8px;
+  }
+  .editor-area:focus { outline:2px solid var(--verde-claro); outline-offset:-2px; }
+  .editor-area h1 { font-size:18pt; text-align:center; margin:12px 0 6px; }
+  .editor-area h2 { font-size:14pt; text-align:center; margin:10px 0 4px; }
+  .editor-area h3 { font-size:12pt; font-weight:bold; margin:8px 0 4px; }
+  .editor-area p  { margin:4px 0; }
+  .editor-area ul,.editor-area ol { margin:4px 0 4px 22px; }
+  .editor-area hr { border:none; border-top:1px solid #777; margin:10px 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <div class="page-header" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+    <div>
+      <h1 class="page-title">{% if doc %}&#9998; Editar Documento{% else %}&#43; Novo Documento{% endif %}</h1>
+      <p class="page-subtitle">Editor de texto</p>
+    </div>
+    <a href="{{ url_for('documentacao.lista') }}" class="btn btn-secondary">&#8592; Voltar</a>
+  </div>
+
+  <form method="POST" id="form-editor">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="conteudo_html" id="input-conteudo">
+
+    <!-- Nome -->
+    <div class="card" style="padding:16px 20px; margin-bottom:14px;">
+      <label for="campo-nome" style="display:block; font-weight:700; margin-bottom:6px; font-size:13px;">
+        Nome do documento
+      </label>
+      <input type="text" id="campo-nome" name="nome" value="{{ nome | e }}"
+             placeholder="Ex.: FIDU — SGT SILVA — Mai/2026" required
+             style="width:100%; font-size:15px; padding:8px 12px; border:1.5px solid var(--borda);
+                    border-radius:6px; font-family:inherit; color:var(--texto-escuro); background:#fff;">
+    </div>
+
+    <div class="card" style="padding:0; overflow:hidden; margin-bottom:14px;">
+
+      <!-- TOOLBAR -->
+      <div class="editor-toolbar">
+
+        <!-- Formatação básica -->
+        <div class="toolbar-grupo">
+          <button type="button" class="tb" onclick="fmt('bold')">
+            <strong>N</strong><span class="tb-label">Negrito</span>
+          </button>
+          <button type="button" class="tb" onclick="fmt('italic')">
+            <em>I</em><span class="tb-label">Itálico</span>
+          </button>
+          <button type="button" class="tb" onclick="fmt('underline')">
+            <u>S</u><span class="tb-label">Sublinhado</span>
+          </button>
+          <button type="button" class="tb" onclick="fmt('strikeThrough')">
+            <s>T</s><span class="tb-label">Tachado</span>
+          </button>
+        </div>
+
+        <div class="toolbar-sep"></div>
+
+        <!-- Blocos de texto -->
+        <div class="toolbar-grupo">
+          <button type="button" class="tb" onclick="fmtBlock('h1')">
+            T1<span class="tb-label">Título 1</span>
+          </button>
+          <button type="button" class="tb" onclick="fmtBlock('h2')">
+            T2<span class="tb-label">Título 2</span>
+          </button>
+          <button type="button" class="tb" onclick="fmtBlock('h3')">
+            T3<span class="tb-label">Subtítulo</span>
+          </button>
+          <button type="button" class="tb" onclick="fmtBlock('p')">
+            &#182;<span class="tb-label">Parágrafo</span>
+          </button>
+        </div>
+
+        <div class="toolbar-sep"></div>
+
+        <!-- Tamanho da fonte -->
+        <div class="toolbar-grupo">
+          <select class="tb-select" onchange="mudarTamanho(this)" title="Tamanho da fonte">
+            <option value="">Tamanho</option>
+            <option value="1">8pt</option>
+            <option value="2">10pt</option>
+            <option value="3">12pt (normal)</option>
+            <option value="4">14pt</option>
+            <option value="5">18pt</option>
+            <option value="6">24pt</option>
+          </select>
+        </div>
+
+        <div class="toolbar-sep"></div>
+
+        <!-- Alinhamento -->
+        <div class="toolbar-grupo">
+          <button type="button" class="tb" onclick="fmt('justifyLeft')">
+            &#8676;<span class="tb-label">Esquerda</span>
+          </button>
+          <button type="button" class="tb" onclick="fmt('justifyCenter')">
+            &#8596;<span class="tb-label">Centralizar</span>
+          </button>
+          <button type="button" class="tb" onclick="fmt('justifyRight')">
+            &#8677;<span class="tb-label">Direita</span>
+          </button>
+        </div>
+
+        <div class="toolbar-sep"></div>
+
+        <!-- Listas -->
+        <div class="toolbar-grupo">
+          <button type="button" class="tb" onclick="fmt('insertUnorderedList')">
+            &#8226;<span class="tb-label">Lista</span>
+          </button>
+          <button type="button" class="tb" onclick="fmt('insertOrderedList')">
+            1.<span class="tb-label">Numerada</span>
+          </button>
+        </div>
+
+        <div class="toolbar-sep"></div>
+
+        <!-- Inserir elementos -->
+        <div class="toolbar-grupo">
+          <button type="button" class="tb" onclick="fmt('insertHorizontalRule')">
+            &#9135;<span class="tb-label">Linha</span>
+          </button>
+          <button type="button" class="tb" onclick="inserirAssinatura()">
+            &#9135;&#9632;<span class="tb-label">Assinatura</span>
+          </button>
+        </div>
+
+        <div class="toolbar-sep"></div>
+
+        <!-- Desfazer / Refazer -->
+        <div class="toolbar-grupo">
+          <button type="button" class="tb" onclick="fmt('undo')">
+            &#8630;<span class="tb-label">Desfazer</span>
+          </button>
+          <button type="button" class="tb" onclick="fmt('redo')">
+            &#8631;<span class="tb-label">Refazer</span>
+          </button>
+          <button type="button" class="tb" onclick="fmt('removeFormat')">
+            &#10006;<span class="tb-label">Limpar fmt.</span>
+          </button>
+        </div>
+
+      </div><!-- /toolbar -->
+
+      <!-- Área de edição -->
+      <div class="editor-area" id="editor" contenteditable="true" spellcheck="false">{{ conteudo | safe }}</div>
+
+    </div><!-- /card -->
+
+    <!-- Ações -->
+    <div style="display:flex; gap:10px; margin-top:4px; flex-wrap:wrap;">
+      <button type="submit" class="btn btn-primary">&#128190; Salvar documento</button>
+      {% if doc %}
+      <a href="{{ url_for('documentacao.gerar', doc_id=doc.id) }}" target="_blank"
+         class="btn btn-secondary">&#128424; Visualizar / Imprimir</a>
+      {% endif %}
+      <a href="{{ url_for('documentacao.lista') }}" class="btn btn-secondary">Cancelar</a>
+    </div>
+
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  var ed = document.getElementById('editor');
+
+  function fmt(cmd) { ed.focus(); document.execCommand(cmd, false, null); }
+
+  function fmtBlock(tag) { ed.focus(); document.execCommand('formatBlock', false, tag); }
+
+  function mudarTamanho(sel) {
+    if (sel.value) { ed.focus(); document.execCommand('fontSize', false, sel.value); }
+    sel.value = '';
+  }
+
+  function inserirAssinatura() {
+    var html = '<p style="text-align:center; margin-top:32px;">'
+             + '_______________________________________________<br>'
+             + '<em>Nome / Posto &nbsp;&middot;&nbsp; Fun&ccedil;&atilde;o</em></p>';
+    ed.focus();
+    document.execCommand('insertHTML', false, html);
+  }
+
+  document.getElementById('form-editor').addEventListener('submit', function () {
+    document.getElementById('input-conteudo').value = ed.innerHTML;
+  });
+</script>
+{% endblock %}

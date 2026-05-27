@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Trocar Senha{% endblock %}
+
+{% block content %}
+<h1 class="page-title">🔑 Trocar Senha</h1>
+
+{% if current_user.senha_temporaria %}
+<div class="info-box" style="background: #f5e6b3; border-left-color: var(--khaki);">
+  <strong>Sua senha atual é temporária.</strong> Para continuar usando o sistema,
+  você precisa definir uma nova senha pessoal agora.
+</div>
+{% else %}
+<div class="page-subtitle">Defina uma nova senha para sua conta</div>
+{% endif %}
+
+<div class="panel" style="padding: 24px; max-width: 500px;">
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-group">
+      <label for="senha_atual">Senha atual</label>
+      <input type="password" name="senha_atual" id="senha_atual"
+             autocomplete="current-password" required autofocus>
+    </div>
+    <div class="form-group">
+      <label for="nova_senha">Nova senha</label>
+      <input type="password" name="nova_senha" id="nova_senha"
+             autocomplete="new-password" minlength="6" required>
+      <div class="hint">Mínimo 6 caracteres. Use uma senha que você lembre.</div>
+    </div>
+    <div class="form-group">
+      <label for="confirmar_senha">Confirmar nova senha</label>
+      <input type="password" name="confirmar_senha" id="confirmar_senha"
+             autocomplete="new-password" minlength="6" required>
+    </div>
+
+    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
+      {% if not current_user.senha_temporaria %}
+      <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Cancelar</a>
+      {% endif %}
+      <button type="submit" class="btn btn-primary">Trocar Senha</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

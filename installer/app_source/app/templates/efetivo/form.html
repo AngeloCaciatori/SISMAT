@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}{% if modo == 'novo' %}Novo Militar{% else %}Editar Militar{% endif %}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">
+  {% if modo == 'novo' %}+ Novo Militar
+  {% else %}✎ Editar {{ militar.graduacao or '' }} {{ militar.nome_guerra or militar.cpf }}{% endif %}
+</h1>
+
+<div class="panel" style="padding: 24px; max-width: 800px;">
+  <form method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="info-box" style="margin-bottom:16px;">
+      Apenas <strong>CPF</strong> é obrigatório. Os demais campos podem ser preenchidos depois.
+    </div>
+
+    <div class="form-group">
+      <label for="cpf">CPF <span style="color:var(--vermelho);">*</span></label>
+      <input type="text" name="cpf" id="cpf" required maxlength="14"
+             value="{{ militar.cpf if militar else '' }}"
+             placeholder="00000000000">
+      <div class="hint">Apenas números (zeros à esquerda preservados)</div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="form-group">
+        <label for="graduacao">Graduação</label>
+        <select name="graduacao" id="graduacao">
+          <option value="">— Selecione —</option>
+          {% for g in graduacoes %}
+          <option value="{{ g }}" {% if militar and militar.graduacao == g %}selected{% endif %}>{{ g }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="nome_guerra">Nome de Guerra</label>
+        <input type="text" name="nome_guerra" id="nome_guerra" maxlength="50"
+               value="{{ militar.nome_guerra if militar else '' }}"
+               placeholder="Ex.: FONTES">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="nome_completo">Nome Completo</label>
+      <input type="text" name="nome_completo" id="nome_completo" maxlength="200"
+             value="{{ militar.nome_completo if militar else '' }}"
+             placeholder="Nome completo do militar">
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+      <div class="form-group">
+        <label for="ri">RI</label>
+        <input type="text" name="ri" id="ri" maxlength="50"
+               value="{{ militar.ri if militar else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="antiguidade">Antiguidade</label>
+        <input type="number" name="antiguidade" id="antiguidade" step="0.01"
+               value="{{ militar.antiguidade if militar and militar.antiguidade else '' }}"
+               placeholder="Ex.: 906">
+      </div>
+      <div class="form-group">
+        <label for="numero">Número (NR)</label>
+        <input type="text" name="numero" id="numero" maxlength="50"
+               value="{{ militar.numero if militar else '' }}">
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+      <div class="form-group">
+        <label for="om">OM</label>
+        <input type="text" name="om" id="om" maxlength="100"
+               value="{{ militar.om if militar else 'Bia C AD/5' }}">
+      </div>
+      <div class="form-group">
+        <label for="telefone1">Telefone 1</label>
+        <input type="text" name="telefone1" id="telefone1" maxlength="30"
+               value="{{ militar.telefone1 if militar else '' }}"
+               placeholder="(00) 00000-0000">
+      </div>
+      <div class="form-group">
+        <label for="telefone2">Telefone 2</label>
+        <input type="text" name="telefone2" id="telefone2" maxlength="30"
+               value="{{ militar.telefone2 if militar else '' }}"
+               placeholder="(opcional)">
+      </div>
+    </div>
+
+    {% if modo == 'novo' %}
+    <div class="form-group">
+      <label for="foto">Foto (opcional)</label>
+      <input type="file" name="foto" id="foto" accept="image/*">
+      <div class="hint">Você pode também tirar uma foto via webcam depois, na tela de detalhes.</div>
+    </div>
+    {% endif %}
+
+    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
+      {% if militar %}
+      <a href="{{ url_for('efetivo.detalhe', mil_id=militar.id) }}" class="btn btn-secondary">Cancelar</a>
+      {% else %}
+      <a href="{{ url_for('efetivo.lista') }}" class="btn btn-secondary">Cancelar</a>
+      {% endif %}
+      <button type="submit" class="btn btn-primary">
+        {% if modo == 'novo' %}Cadastrar{% else %}Salvar Alterações{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+
+{% if militar %}
+<div class="info-box" style="margin-top:16px;">
+  <strong>ID #{{ militar.id }}</strong> · cadastrado em {{ militar.criado_em | data_br }}
+  · última edição em {{ militar.atualizado_em | data_br }}
+</div>
+{% endif %}
+{% endblock %}

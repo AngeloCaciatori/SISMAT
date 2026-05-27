@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ secao }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">{{ secao }}</h1>
+<div class="page-subtitle">Esta seção será implementada na próxima sessão</div>
+
+<div class="panel" style="padding: 40px; text-align: center;">
+  <div style="font-size: 64px; margin-bottom: 16px;">🛠</div>
+  <h2 style="color: var(--verde-escuro); margin-bottom: 8px;">Em construção</h2>
+  <p style="color: var(--texto-claro); max-width: 480px; margin: 0 auto 20px;">
+    A fundação do sistema (banco, login, sessão) está pronta. Os CRUDs
+    desta seção serão construídos nas próximas sessões.
+  </p>
+  <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">← Voltar ao Painel</a>
+</div>
+{% endblock %}

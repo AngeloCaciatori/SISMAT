@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Painel Principal{% endblock %}
+
+{% block content %}
+
+<!-- Cabeçalho de boas-vindas -->
+<div style="display:flex; align-items:center; gap:14px; margin-bottom:26px;">
+  <img src="{{ url_for('static', filename='img/BrasaoSISMAT.png') }}"
+       alt="Brasão SISMAT"
+       style="width:52px; height:52px; object-fit:contain; flex-shrink:0;">
+  <div>
+    <div style="font-size:13px; color:var(--texto-claro); margin-bottom:2px;">
+      <span id="saudacao">Bem-vindo</span>, <strong>{{ current_user.login }}</strong>
+    </div>
+    <h1 style="font-size:23px; font-weight:800; color:var(--verde-escuro); line-height:1.15;">
+      Painel de Controle de Material
+    </h1>
+    <div style="font-size:12px; color:var(--texto-claro); margin-top:2px;">
+      Subtenência · {{ NOME_INSTITUICAO }}
+    </div>
+  </div>
+</div>
+
+<!-- Stat Pills (Logistix style) -->
+<div class="stats-pills">
+
+  <div class="stat-pill stat-pill-azul">
+    <span class="pill-icon">👥</span>
+    <div>
+      <div class="pill-numero">{{ total_militares }}</div>
+      <div class="pill-rotulo">Militares no Efetivo</div>
+    </div>
+  </div>
+
+  <div class="stat-pill stat-pill-verde">
+    <span class="pill-icon">📦</span>
+    <div>
+      <div class="pill-numero">{{ total_itens }}</div>
+      <div class="pill-rotulo">Tipos de Material</div>
+      <div style="font-size:10px; opacity:0.8; margin-top:2px;">
+        {{ '{:,}'.format(total_unidades).replace(',','.') }} un. em carga
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-pill stat-pill-roxo">
+    <span class="pill-icon">📋</span>
+    <div>
+      <div class="pill-numero">{{ cautelas_ativas }}</div>
+      <div class="pill-rotulo">Cautelas Ativas</div>
+    </div>
+  </div>
+
+  <div class="stat-pill stat-pill-vermelho">
+    <span class="pill-icon">⚠️</span>
+    <div>
+      <div class="pill-numero">{{ cautelas_atrasadas }}</div>
+      <div class="pill-rotulo">Devoluções Atrasadas</div>
+    </div>
+  </div>
+
+
+</div>
+
+<!-- Cards de navegação por seção -->
+<h2 style="font-size:16px; font-weight:700; color:var(--verde-escuro); margin-bottom:14px;">
+  O que deseja fazer?
+</h2>
+<div class="dashboard-grid">
+
+  <a href="{{ url_for('efetivo.lista') }}" class="nav-card nav-card-azul">
+    <span class="icone">👥</span>
+    <h3>Efetivo</h3>
+    <p>{{ total_militares }} militares cadastrados — fotos, dados pessoais e medidas corporais</p>
+  </a>
+
+  <a href="{{ url_for('material.lista') }}" class="nav-card nav-card-teal">
+    <span class="icone">📦</span>
+    <h3>Material</h3>
+    <p>Material em carga, prateleiras do almoxarifado e ficha SISCOFIS</p>
+  </a>
+
+  <a href="{{ url_for('cautelas.lista') }}" class="nav-card nav-card-roxo">
+    <span class="icone">📋</span>
+    <h3>Cautelas</h3>
+    <p>Empréstimos ativos, novos registros e controle de devoluções</p>
+  </a>
+
+  <a href="{{ url_for('documentacao.lista') }}" class="nav-card nav-card-indigo">
+    <span class="icone">📄</span>
+    <h3>Documentação</h3>
+    <p>Modelos editáveis, ficha FIDU e impressão em lote</p>
+  </a>
+
+
+  {% if current_user.is_admin %}
+  <a href="{{ url_for('operadores.lista') }}" class="nav-card nav-card-vermelho">
+    <span class="icone">🔐</span>
+    <h3>Operadores <span class="badge badge-admin" style="font-size:9px; vertical-align:middle;">Admin</span></h3>
+    <p>Contas de acesso ao sistema · {{ total_operadores }} operador(es) cadastrado(s)</p>
+  </a>
+  {% endif %}
+
+</div>
+
+<script>
+  var h = new Date().getHours();
+  document.getElementById('saudacao').textContent =
+    h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+</script>
+{% endblock %}

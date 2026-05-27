@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Documentação{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <div class="page-header" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;">
+    <div>
+      <h1 class="page-title">&#128196; Documentação</h1>
+      <p class="page-subtitle">Modelos de referência e documentos gerados</p>
+    </div>
+    <a href="{{ url_for('documentacao.novo') }}" class="btn btn-secondary">+ Documento em branco</a>
+  </div>
+
+  <!-- ══ SEÇÃO 1: MODELOS PADRÃO (somente leitura) ══ -->
+  <div style="margin-bottom:32px;">
+    <h2 style="font-size:14px; font-weight:700; color:var(--texto-claro); text-transform:uppercase;
+               letter-spacing:.06em; margin-bottom:12px; padding-bottom:6px;
+               border-bottom:2px solid var(--borda);">
+      &#128196; Modelos disponíveis
+    </h2>
+    <p style="font-size:12px; color:var(--texto-claro); margin-bottom:14px;">
+      Modelos de referência do sistema. Não podem ser editados nem excluídos.
+      Clique em <strong>Usar este modelo</strong> para criar um documento editável a partir dele.
+    </p>
+
+    {% if modelos %}
+    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px;">
+      {% for m in modelos %}
+      <div class="card" style="padding:18px; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; align-items:flex-start; gap:12px;">
+          <span style="font-size:28px; line-height:1;">&#128196;</span>
+          <div>
+            <div style="font-weight:700; font-size:14px;">{{ m.nome }}</div>
+            <span class="tag tag-azul" style="font-size:10px; margin-top:4px;">Modelo padrão</span>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:auto;">
+          <form method="POST" action="{{ url_for('documentacao.criar_documento', modelo_id=m.id) }}"
+                style="flex:1;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary btn-small" style="width:100%;">
+              &#128203; Usar este modelo
+            </button>
+          </form>
+          <a href="{{ url_for('documentacao.gerar', doc_id=m.id) }}" target="_blank"
+             class="btn btn-secondary btn-small" title="Visualizar modelo">&#128065;</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="info-box">Nenhum modelo padrão encontrado. Execute <code>python scripts/init_db.py</code> para criá-los.</div>
+    {% endif %}
+  </div>
+
+  <!-- ══ SEÇÃO 2: DOCUMENTOS CRIADOS (editáveis) ══ -->
+  <div>
+    <h2 style="font-size:14px; font-weight:700; color:var(--texto-claro); text-transform:uppercase;
+               letter-spacing:.06em; margin-bottom:12px; padding-bottom:6px;
+               border-bottom:2px solid var(--borda);">
+      &#128221; Meus documentos
+    </h2>
+
+    {% if documentos %}
+    <div class="card" style="overflow:hidden;">
+      <table>
+        <thead>
+          <tr>
+            <th>Nome do Documento</th>
+            <th style="width:170px;">Última alteração</th>
+            <th style="width:220px; text-align:right;">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in documentos %}
+          <tr>
+            <td><strong>{{ d.nome }}</strong></td>
+            <td style="font-size:12px; color:var(--texto-claro);">
+              {{ d.atualizado_em.strftime('%d/%m/%Y %H:%M') if d.atualizado_em else '—' }}
+            </td>
+            <td class="table-actions" style="justify-content:flex-end;">
+              <a href="{{ url_for('documentacao.gerar', doc_id=d.id) }}" target="_blank"
+                 class="btn btn-small btn-primary" title="Visualizar e imprimir">&#128424; Imprimir</a>
+              <a href="{{ url_for('documentacao.editar', doc_id=d.id) }}"
+                 class="btn btn-small btn-secondary">&#9998; Editar</a>
+              <form method="POST" action="{{ url_for('documentacao.excluir', doc_id=d.id) }}"
+                    style="display:inline;"
+                    onsubmit="return confirm('Excluir o documento \'{{ d.nome }}\'? Esta ação não pode ser desfeita.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-small btn-danger" title="Excluir">&#128465;</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="card" style="text-align:center; padding:36px; color:var(--texto-claro);">
+      <div style="font-size:40px; margin-bottom:10px;">&#128221;</div>
+      <p>Nenhum documento criado ainda.</p>
+      <p style="margin-top:8px; font-size:13px;">
+        Escolha um modelo acima e clique em <strong>Usar este modelo</strong> para começar.
+      </p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

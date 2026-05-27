@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Backup do Banco{% endblock %}
+
+{% block content %}
+<h1 class="page-title">💾 Backup do Banco</h1>
+<div class="page-subtitle">Cópias de segurança do SISMAT — proteção contra perda de dados</div>
+
+<div class="info-box">
+  <strong>Por que isso importa:</strong> todo o sistema (172 militares, 134 materiais, cautelas,
+  fotos, etc.) vive no arquivo <code>instance/sismat.db</code>. Se o computador for formatado ou
+  a pasta apagada, tudo vai junto. Backups regulares são a única proteção.
+</div>
+
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="valor">{{ '%.1f'|format(tamanho_atual) }} KB</div>
+    <div class="rotulo">Banco Atual</div>
+  </div>
+  <div class="stat-card">
+    <div class="valor">{{ total }}</div>
+    <div class="rotulo">Backups Salvos</div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h3>Backups disponíveis</h3>
+    <form method="POST" action="{{ url_for('operadores.backup_criar') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-primary btn-small">💾 Fazer backup agora</button>
+    </form>
+  </div>
+
+  {% if arquivos %}
+  <table>
+    <thead>
+      <tr>
+        <th>Arquivo</th>
+        <th>Data/Hora</th>
+        <th style="text-align:right;">Tamanho</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in arquivos %}
+      <tr>
+        <td style="font-family:'Courier New',monospace; font-size:12px;">{{ a.nome }}</td>
+        <td>{{ a.criado.strftime('%d/%m/%Y %H:%M') }}</td>
+        <td style="text-align:right;">{{ '%.1f'|format(a.tamanho_kb) }} KB</td>
+        <td class="table-actions">
+          <a href="{{ url_for('operadores.backup_baixar', nome=a.nome) }}"
+             class="btn btn-small btn-secondary">📥 Baixar</a>
+          <form method="POST" action="{{ url_for('operadores.backup_remover', nome=a.nome) }}"
+                style="display:inline;" onsubmit="return confirm('Remover backup {{ a.nome }}?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-small btn-danger">Remover</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="padding: 40px; text-align: center; color: var(--texto-claro);">
+    Nenhum backup ainda. Clique em <strong>💾 Fazer backup agora</strong> para criar o primeiro.
+  </div>
+  {% endif %}
+
+  <div style="padding:10px 16px; font-size:12px; color:var(--texto-claro); border-top:1px solid var(--borda); background:var(--areia);">
+    Pasta: <code>{{ pasta }}</code>
+  </div>
+</div>
+
+<div class="info-box" style="margin-top:14px; background:rgba(201,162,39,0.12); border-left-color:var(--verde-claro);">
+  <strong>💡 Recomendações:</strong>
+  <ol style="margin: 8px 0 0 20px; font-size: 13px;">
+    <li>Faça <strong>backup mensal automático</strong> rodando o arquivo <code>agendar_backup.bat</code>
+        (clique-duplo) — o Windows passa a fazer backup todo dia 1 do mês às 03:00.</li>
+    <li>Para máxima segurança, configure a pasta de backups para sincronizar com nuvem
+        (OneDrive, Google Drive, Dropbox). Assim o backup vai automaticamente para fora do PC.</li>
+    <li>Para restaurar um backup, basta <em>copiar o arquivo .db sobre o sismat.db</em> com o
+        sistema parado (feche o navegador e o iniciar.bat antes).</li>
+  </ol>
+</div>
+
+<div style="margin-top: 16px;">
+  <a href="{{ url_for('operadores.lista') }}" class="btn btn-secondary btn-small">← Operadores</a>
+  <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-small">← Painel</a>
+</div>
+{% endblock %}

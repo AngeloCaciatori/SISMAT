@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 190">
+  <!-- Borda dourada do escudo -->
+  <path d="M80 4 L154 28 L154 110 Q152 158 80 186 Q8 158 6 110 L6 28 Z"
+        fill="#C9A227" />
+  <!-- Campo branco principal -->
+  <path d="M80 10 L148 32 L148 110 Q146 153 80 179 Q14 153 12 110 L12 32 Z"
+        fill="#ffffff" />
+  <!-- Faixa vermelha superior -->
+  <rect x="12" y="10" width="136" height="34" rx="2" fill="#B22234"/>
+  <!-- Texto SISMAT na faixa -->
+  <text x="80" y="33" text-anchor="middle" font-size="22" fill="#ffffff"
+        font-weight="900" font-family="Georgia, serif" letter-spacing="2">SISMAT</text>
+  <!-- Faixa azul abaixo do vermelho -->
+  <rect x="12" y="44" width="136" height="10" fill="#0033A0"/>
+  <!-- Losango azul central -->
+  <g transform="translate(80,118) rotate(45)">
+    <rect x="-42" y="-42" width="84" height="84" fill="#0033A0" rx="3"/>
+  </g>
+  <!-- Urna/anfora branca no centro do losango (simplificada) -->
+  <ellipse cx="80" cy="116" rx="16" ry="18" fill="white"/>
+  <ellipse cx="80" cy="102" rx="9" ry="6" fill="white"/>
+  <rect x="74" y="96" width="12" height="8" fill="white" rx="2"/>
+  <!-- Folhas decorativas esquerda -->
+  <path d="M64,116 Q52,108 50,120 Q58,118 64,116 Z" fill="white"/>
+  <path d="M64,122 Q50,122 52,132 Q58,126 64,122 Z" fill="white"/>
+  <path d="M64,128 Q54,132 56,142 Q62,134 64,128 Z" fill="white"/>
+  <!-- Folhas decorativas direita -->
+  <path d="M96,116 Q108,108 110,120 Q102,118 96,116 Z" fill="white"/>
+  <path d="M96,122 Q110,122 108,132 Q102,126 96,122 Z" fill="white"/>
+  <path d="M96,128 Q106,132 104,142 Q98,134 96,128 Z" fill="white"/>
+  <!-- Coroa de folhas no topo da urna -->
+  <path d="M72,96 Q75,88 80,90 Q85,88 88,96" fill="none" stroke="white" stroke-width="2.5"/>
+  <circle cx="80" cy="90" r="3" fill="white"/>
+  <circle cx="74" cy="93" r="2.5" fill="white"/>
+  <circle cx="86" cy="93" r="2.5" fill="white"/>
+</svg>

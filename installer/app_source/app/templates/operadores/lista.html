@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Operadores{% endblock %}
+
+{% block content %}
+<h1 class="page-title">🔐 Operadores do Sistema</h1>
+<div class="page-subtitle">Pessoal autorizado a operar o SISMAT — área restrita ao Administrador</div>
+
+<div class="info-box">
+  <strong>Diferença para o Efetivo:</strong> aqui ficam apenas as <em>contas de login</em>
+  de quem trabalha na Subtenência. Como os operadores mudam ao longo do tempo, esta tela
+  permite cadastrar novos e remover antigos rapidamente.
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h3>Contas de Acesso ({{ operadores|length }})</h3>
+    <div style="display:flex; gap:8px;">
+      <a href="{{ url_for('operadores.backup_lista') }}" class="btn btn-secondary btn-small">💾 Backup</a>
+      <a href="{{ url_for('operadores.novo') }}" class="btn btn-primary btn-small">+ Novo Operador</a>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Login</th>
+        <th>Vínculo no Efetivo</th>
+        <th>Seção</th>
+        <th>Nível</th>
+        <th>Status</th>
+        <th>Último acesso</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for op in operadores %}
+      <tr>
+        <td><strong>{{ op.login }}</strong></td>
+        <td>
+          {% if op.militar %}
+            {{ op.militar.graduacao }} {{ op.militar.nome_guerra }}
+          {% else %}
+            <span style="color: var(--texto-claro);">—</span>
+          {% endif %}
+        </td>
+        <td>{{ op.secao }}</td>
+        <td>
+          {% if op.is_admin %}
+            <span class="badge badge-admin">Administrador</span>
+          {% else %}
+            <span class="badge badge-subten">Operador</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if not op.ativo %}
+            <span class="tag tag-vermelho">Inativo</span>
+          {% elif op.senha_temporaria %}
+            <span class="tag tag-amarelo">Senha temp.</span>
+          {% else %}
+            <span class="tag tag-verde">Ativo</span>
+          {% endif %}
+        </td>
+        <td>{{ op.ultimo_acesso | data_br if op.ultimo_acesso else '—' }}</td>
+        <td>
+          <a href="{{ url_for('operadores.editar', op_id=op.id) }}"
+             class="btn btn-small btn-secondary">Editar</a>
+          <a href="{{ url_for('operadores.resetar_senha', op_id=op.id) }}"
+             class="btn btn-small btn-secondary">Resetar senha</a>
+          {% if op.id != current_user.id and op.ativo %}
+          <form method="POST" action="{{ url_for('operadores.remover', op_id=op.id) }}"
+                style="display:inline;"
+                onsubmit="return confirm('Desativar o operador {{ op.login }}?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-small btn-danger">Desativar</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="info-box" style="margin-top:14px; background:#f5e0e0; border-left-color:var(--vermelho);">
+  <strong>Atenção segurança:</strong> as senhas no SISMAT são armazenadas com hash bcrypt.
+  Ninguém — nem o admin — consegue ler a senha original. Em caso de esquecimento, é
+  necessário <em>resetar</em> para uma nova senha temporária.
+</div>
+
+<div style="margin-top: 16px;">
+  <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-small">← Voltar ao Painel</a>
+</div>
+{% endblock %}

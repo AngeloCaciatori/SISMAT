@@ -1,0 +1,104 @@
+{% extends "mobile/base_mobile.html" %}
+
+{% block title %}{{ militar.graduacao }} {{ militar.nome_guerra }}{% endblock %}
+{% block page_title %}{{ militar.nome_guerra }}{% endblock %}
+{% block back_url %}{{ url_for('efetivo.lista') }}{% endblock %}
+
+{% block content %}
+<div style="padding: 12px;">
+
+  {# Foto + nome #}
+  <div class="card-mobile" style="text-align:center; margin-bottom:10px;">
+    {% if militar.foto_path %}
+      <img src="{{ url_for('efetivo.foto', mil_id=militar.id) }}"
+           style="width:90px; height:110px; object-fit:cover; border-radius:8px; margin-bottom:8px;">
+    {% else %}
+      <div style="width:90px; height:110px; background:#e5e7eb; border-radius:8px;
+                  display:flex; align-items:center; justify-content:center;
+                  font-size:36px; margin:0 auto 8px;">&#128100;</div>
+    {% endif %}
+    <div class="card-mobile-title">{{ militar.graduacao }} {{ militar.nome_guerra }}</div>
+    <div class="card-mobile-sub">{{ militar.nome_completo }}</div>
+    {% if militar.excluido %}
+      <span class="badge-mobile badge-vermelho">Excluído</span>
+    {% else %}
+      <span class="badge-mobile badge-verde">Ativo</span>
+    {% endif %}
+  </div>
+
+  {# Dados pessoais #}
+  <div class="accordion-mobile">
+    <button class="accordion-header open">
+      &#128100; Dados Pessoais
+      <span class="accordion-arrow">&#8964;</span>
+    </button>
+    <div class="accordion-body open">
+      <div class="card-mobile-row"><span class="label">CPF</span><span class="value">{{ militar.cpf }}</span></div>
+      <div class="card-mobile-row"><span class="label">OM</span><span class="value">{{ militar.om }}</span></div>
+      {% if militar.antiguidade %}
+      <div class="card-mobile-row"><span class="label">Antiguidade</span><span class="value">{{ militar.antiguidade }}</span></div>
+      {% endif %}
+      {% if militar.telefone_1 %}
+      <div class="card-mobile-row"><span class="label">Telefone 1</span><span class="value">{{ militar.telefone_1 }}</span></div>
+      {% endif %}
+      {% if militar.telefone_2 %}
+      <div class="card-mobile-row"><span class="label">Telefone 2</span><span class="value">{{ militar.telefone_2 }}</span></div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Medidas #}
+  {% if medidas %}
+  <div class="accordion-mobile">
+    <button class="accordion-header">
+      &#128210; Medidas Corporais
+      <span class="accordion-arrow">&#8964;</span>
+    </button>
+    <div class="accordion-body">
+      {% for rotulo, valor in [('Ombro', medidas.ombro), ('Cintura', medidas.cintura),
+                                ('Quadril', medidas.quadril), ('Cabeça', medidas.cabeca),
+                                ('Pé', medidas.pe), ('Braço', medidas.braco)] %}
+      <div class="card-mobile-row">
+        <span class="label">{{ rotulo }}</span>
+        <span class="value">{{ valor or '—' }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# Cautelas ativas #}
+  {% if cautelas_ativas %}
+  <div class="accordion-mobile">
+    <button class="accordion-header">
+      &#128203; Cautelas Ativas ({{ cautelas_ativas|length }})
+      <span class="accordion-arrow">&#8964;</span>
+    </button>
+    <div class="accordion-body">
+      {% for c in cautelas_ativas %}
+      <a href="{{ url_for('cautelas.detalhe', cautela_id=c.id) }}" style="text-decoration:none;">
+        <div class="card-mobile-row" style="flex-direction:column; align-items:flex-start; gap:2px; padding: 8px 0;">
+          <span class="value" style="font-size:14px;">{{ c.numero }}</span>
+          <span class="label">
+            {{ c.data_cautela|data_br }}
+            {% if c.devolucao_prevista %} · Dev. {{ c.devolucao_prevista|data_br }}{% endif %}
+          </span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# Ações #}
+  <div style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">
+    <a href="{{ url_for('efetivo.editar', mil_id=militar.id) }}" class="btn-mobile btn-secondary">
+      &#9998; Editar dados
+    </a>
+    <a href="{{ url_for('cautelas.nova') }}?militar_id={{ militar.id }}" class="btn-mobile btn-dourado">
+      &#43; Nova Cautela
+    </a>
+  </div>
+
+</div>
+{% endblock %}

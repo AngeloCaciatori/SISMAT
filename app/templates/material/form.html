@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{% if modo == 'novo' %}Novo Material{% else %}Editar Material{% endif %}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">
+  {% if modo == 'novo' %}+ Cadastrar Material{% else %}✎ Editar Material{% endif %}
+</h1>
+
+<div class="panel" style="padding: 24px; max-width: 800px;">
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="form-group">
+      <label for="nomenclatura">Nomenclatura <span style="color:var(--vermelho);">*</span></label>
+      <input type="text" name="nomenclatura" id="nomenclatura" required
+             value="{{ material.nomenclatura if material else '' }}"
+             placeholder="Ex.: CANTIL">
+    </div>
+
+    <div class="form-group">
+      <label for="ficha_siscofis">Ficha SISCOFIS</label>
+      <textarea name="ficha_siscofis" id="ficha_siscofis" rows="2"
+                placeholder="Ex.: 1646 ou 841500 (3), 18-004/G (21+3), 1705/M (3)">{{ material.ficha_siscofis if material else '' }}</textarea>
+      <div class="hint">Texto livre — pode ter múltiplos lotes/tamanhos do SISCOFIS.</div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="form-group">
+        <label for="tipo">Tipo</label>
+        <select name="tipo" id="tipo">
+          {% for t in TIPOS %}
+          <option value="{{ t }}" {% if material and material.tipo == t %}selected{% elif not material and t == 'EQUIPAMENTO' %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="dependencia">Dependência (reserva física)</label>
+        <select name="dependencia" id="dependencia">
+          <option value="" {% if not material or not material.dependencia %}selected{% endif %}>— Sem reserva —</option>
+          <option value="RESERVA 1" {% if material and material.dependencia == 'RESERVA 1' %}selected{% endif %}>RESERVA 1</option>
+          <option value="RESERVA 2" {% if material and material.dependencia == 'RESERVA 2' %}selected{% endif %}>RESERVA 2</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+      <div class="form-group">
+        <label for="prateleira">Prateleira</label>
+        <input type="text" name="prateleira" id="prateleira"
+               value="{{ material.prateleira if material else '' }}"
+               placeholder="Ex.: 32">
+        <div class="hint">Nº físico no almoxarifado</div>
+      </div>
+      <div class="form-group">
+        <label for="qnt_siscofis">QNT SISCOFIS</label>
+        <input type="number" name="qnt_siscofis" id="qnt_siscofis" min="0"
+               value="{{ material.qnt_siscofis if material else 0 }}">
+      </div>
+      <div class="form-group">
+        <label for="conta_contabil">Conta-contábil</label>
+        <input type="text" name="conta_contabil" id="conta_contabil"
+               value="{{ material.conta_contabil if material else '' }}"
+               placeholder="—">
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="form-group">
+        <label for="valor_unitario">Valor Unitário (R$)</label>
+        <input type="number" name="valor_unitario" id="valor_unitario" step="0.01" min="0"
+               value="{{ material.valor_unitario if material and material.valor_unitario else '' }}"
+               placeholder="0,00">
+      </div>
+      <div class="form-group">
+        <label for="estado_conservacao">Estado de Conservação</label>
+        <select name="estado_conservacao" id="estado_conservacao">
+          {% for e in ESTADOS %}
+          <option value="{{ e }}"
+            {% if material and material.estado_conservacao == e %}selected{% elif not material and e == 'Bom' %}selected{% endif %}>
+            {{ e }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="obs">Observações</label>
+      <textarea name="obs" id="obs" rows="3"
+                placeholder="Detalhes adicionais (lotes, descargas, valores históricos...)">{{ material.obs if material else '' }}</textarea>
+    </div>
+
+    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
+      <a href="{{ url_for('material.lista') }}" class="btn btn-secondary">Cancelar</a>
+      <button type="submit" class="btn btn-primary">
+        {% if modo == 'novo' %}Cadastrar{% else %}Salvar Alterações{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+
+{% if material %}
+<div class="info-box" style="margin-top:16px; font-size:12px;">
+  <strong>Cód. {{ material.id }}</strong>
+  · cadastrado em {{ material.criado_em | data_br }}{% if log_criado %} por <strong>{{ log_criado }}</strong>{% endif %}
+  · última edição em {{ material.atualizado_em | data_br }}{% if log_editado %} por <strong>{{ log_editado }}</strong>{% endif %}
+  {% if material.quantidade_cautelada > 0 %}
+  · <strong>{{ material.quantidade_cautelada }}</strong> unidade(s) cauteladas
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
