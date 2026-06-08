@@ -86,6 +86,37 @@
     max-width: 360px; margin-left: auto; margin-right: auto;
     font-style: italic; font-weight: bold; font-size: 11pt;
   }
+  /* Assinaturas digitais na FIDU */
+  .secao-assinaturas {
+    margin-top: 20px; padding-top: 12px;
+    border-top: 2px solid #000;
+  }
+  .secao-assinaturas h3 {
+    text-align: center; font-size: 11pt; margin-bottom: 12px;
+    font-weight: bold;
+  }
+  .assinaturas-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .ass-bloco {
+    border: 1px solid #999;
+    border-radius: 2px;
+    text-align: center;
+    padding: 8px;
+  }
+  .ass-bloco .ass-rotulo {
+    font-size: 8pt; font-weight: bold; color: #555;
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+  .ass-bloco img {
+    max-width: 180px; max-height: 70px;
+    display: block; margin: 0 auto 6px;
+    border-bottom: 1px solid #ccc;
+  }
+  .ass-bloco .ass-nome  { font-size: 9pt; font-weight: bold; }
+  .ass-bloco .ass-data  { font-size: 8pt; color: #666; }
 
   .vazio {
     padding: 30px; text-align: center; color: #888; font-style: italic;
@@ -205,9 +236,102 @@
   Quartel em Curitiba/PR, <span id="data-impressao"></span>
 </div>
 
+{% if assinaturas %}
+{# Separa por papel e tipo de documento #}
+{% set ass_op_rec  = assinaturas | selectattr('papel','eq','operador')  | selectattr('tipo_documento','eq','cautela_recebimento') | list %}
+{% set ass_rec_rec = assinaturas | selectattr('papel','eq','recebedor') | selectattr('tipo_documento','eq','cautela_recebimento') | list %}
+{% set ass_op_dev  = assinaturas | selectattr('papel','eq','operador')  | selectattr('tipo_documento','eq','cautela_devolucao')  | list %}
+{% set ass_rec_dev = assinaturas | selectattr('papel','eq','recebedor') | selectattr('tipo_documento','eq','cautela_devolucao')  | list %}
+
+{% if ass_op_rec or ass_rec_rec %}
+<div class="secao-assinaturas">
+  <h3>ASSINATURAS DE RECEBIMENTO</h3>
+  <div class="assinaturas-grid">
+    {% for a in ass_op_rec + ([None] if not ass_op_rec else []) %}
+    {% if a %}
+    <div class="ass-bloco">
+      <div class="ass-rotulo">Operador (responsável pela cautela)</div>
+      <img src="{{ a.imagem_base64 }}" alt="Assinatura operador">
+      <div class="ass-nome">
+        {% if a.operador_rel %}
+          {% if a.operador_rel.militar %}{{ a.operador_rel.militar.graduacao }} {{ a.operador_rel.militar.nome_guerra }}
+          {% else %}{{ a.operador_rel.login }}{% endif %}
+        {% endif %}
+      </div>
+      <div class="ass-data">{{ a.assinado_em.strftime('%d/%m/%Y %H:%M') if a.assinado_em else '' }}</div>
+    </div>
+    {% else %}
+    <div class="ass-bloco" style="opacity:.4;">
+      <div class="ass-rotulo">Operador (responsável pela cautela)</div>
+      <div style="height:70px; border-bottom:1px solid #ccc; margin-bottom:6px;"></div>
+      <div class="ass-nome">Assinatura pendente</div>
+    </div>
+    {% endif %}
+    {% endfor %}
+
+    {% for a in ass_rec_rec + ([None] if not ass_rec_rec else []) %}
+    {% if a %}
+    <div class="ass-bloco">
+      <div class="ass-rotulo">Recebedor</div>
+      <img src="{{ a.imagem_base64 }}" alt="Assinatura recebedor">
+      <div class="ass-nome">
+        {% if a.militar_rel %}{{ a.militar_rel.graduacao }} {{ a.militar_rel.nome_guerra }}
+        {% elif a.recebedor_externo_nome %}{{ a.recebedor_externo_nome }}
+        {% endif %}
+      </div>
+      <div class="ass-data">{{ a.assinado_em.strftime('%d/%m/%Y %H:%M') if a.assinado_em else '' }}</div>
+    </div>
+    {% else %}
+    <div class="ass-bloco" style="opacity:.4;">
+      <div class="ass-rotulo">Recebedor</div>
+      <div style="height:70px; border-bottom:1px solid #ccc; margin-bottom:6px;"></div>
+      <div class="ass-nome">Assinatura pendente</div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if ass_op_dev or ass_rec_dev %}
+<div class="secao-assinaturas">
+  <h3>ASSINATURAS DE DEVOLUÇÃO</h3>
+  <div class="assinaturas-grid">
+    {% for a in ass_op_dev %}
+    <div class="ass-bloco">
+      <div class="ass-rotulo">Operador (recebeu a devolução)</div>
+      <img src="{{ a.imagem_base64 }}" alt="Assinatura operador">
+      <div class="ass-nome">
+        {% if a.operador_rel %}
+          {% if a.operador_rel.militar %}{{ a.operador_rel.militar.graduacao }} {{ a.operador_rel.militar.nome_guerra }}
+          {% else %}{{ a.operador_rel.login }}{% endif %}
+        {% endif %}
+      </div>
+      <div class="ass-data">{{ a.assinado_em.strftime('%d/%m/%Y %H:%M') if a.assinado_em else '' }}</div>
+    </div>
+    {% endfor %}
+    {% for a in ass_rec_dev %}
+    <div class="ass-bloco">
+      <div class="ass-rotulo">Recebedor (devolveu)</div>
+      <img src="{{ a.imagem_base64 }}" alt="Assinatura recebedor">
+      <div class="ass-nome">
+        {% if a.militar_rel %}{{ a.militar_rel.graduacao }} {{ a.militar_rel.nome_guerra }}
+        {% elif a.recebedor_externo_nome %}{{ a.recebedor_externo_nome }}
+        {% endif %}
+      </div>
+      <div class="ass-data">{{ a.assinado_em.strftime('%d/%m/%Y %H:%M') if a.assinado_em else '' }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% else %}
+{# Sem assinaturas digitais — linha clássica de assinatura #}
 <div class="assinatura-final">
   {{ (nome_completo or guerra or cpf or '') | upper }}{% if grad %} — {{ grad }}{% endif %}
 </div>
+{% endif %}
 
 <script>
   const meses = ['janeiro','fevereiro','março','abril','maio','junho',

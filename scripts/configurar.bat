@@ -91,6 +91,7 @@ echo Inicializando banco de dados...
 echo [%DATE% %TIME%] Aplicando migracoes... >> "%LOG%"
 echo Aplicando migracoes...
 "%VENV%\Scripts\python.exe" "%APP%scripts\migrar_v2.py" >> "%LOG%" 2>&1
+"%VENV%\Scripts\python.exe" "%APP%scripts\migrar_v3.py" >> "%LOG%" 2>&1
 
 :: ---- Fim ----
 echo. >> "%LOG%"

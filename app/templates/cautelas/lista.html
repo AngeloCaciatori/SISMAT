@@ -39,7 +39,9 @@
       <input type="text" name="q" value="{{ busca }}" class="search-box"
              placeholder="Buscar Nº, militar, CPF, OM externa...">
       <button type="submit" class="btn btn-secondary btn-small">Filtrar</button>
+      {% if not current_user.is_admin %}
       <a href="{{ url_for('cautelas.nova') }}" class="btn btn-primary btn-small">+ Nova Cautela</a>
+      {% endif %}
     </form>
   </div>
 
@@ -109,7 +111,7 @@
         <td class="table-actions">
           <a href="{{ url_for('cautelas.detalhe', cautela_id=c.id) }}"
              class="btn btn-small btn-secondary">👁 Ver</a>
-          {% if not c.devolvida %}
+          {% if not c.devolvida and not current_user.is_admin %}
           <form method="POST" action="{{ url_for('cautelas.devolver', cautela_id=c.id) }}"
                 style="display:inline;" onsubmit="return confirm('Confirmar devolução da cautela {{ c.numero }}?');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

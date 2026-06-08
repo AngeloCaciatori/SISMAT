@@ -142,6 +142,10 @@ REM --- 6. Migracao v2 (idempotente) ---
 echo [INFO] Aplicando migracao v2 ^(coluna excluido_em^)...
 .venv\Scripts\python.exe scripts\migrar_v2.py
 
+REM --- 6b. Migracao v3 (assinatura digital) ---
+echo [INFO] Aplicando migracao v3 ^(assinatura digital^)...
+.venv\Scripts\python.exe scripts\migrar_v3.py
+
 REM --- 7. Importacao opcional ---
 if exist "data\csv_legacy\DADOS DO EFETIVO.csv" (
     echo.

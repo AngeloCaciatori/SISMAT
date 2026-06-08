@@ -119,11 +119,20 @@ def detalhe(cautela_id):
     )
     devolvido_por = log_devol.operador_label if log_devol else None
 
+    from ..models import AssinaturaAplicada
+    assinaturas = (
+        AssinaturaAplicada.query
+        .filter_by(cautela_id=cautela_id)
+        .order_by(AssinaturaAplicada.id)
+        .all()
+    )
+
     return render_resp(
         "cautelas/detalhe.html",
         cautela=cautela,
         hoje=_date.today(),
         devolvido_por=devolvido_por,
+        assinaturas=assinaturas,
     )
 
 
@@ -154,16 +163,28 @@ def imprimir(cautela_id):
     extras = [t for t in grupos if t not in ordem]
     grupos_ordenados.extend((t, grupos[t]) for t in extras)
 
+    from ..models import AssinaturaAplicada
+    assinaturas_imp = (
+        AssinaturaAplicada.query
+        .filter_by(cautela_id=cautela_id)
+        .order_by(AssinaturaAplicada.id)
+        .all()
+    )
+
     return render_template(
         "cautelas/imprimir_ficha.html",
         cautela=cautela,
         grupos=grupos_ordenados,
+        assinaturas=assinaturas_imp,
     )
 
 
 @bp.route("/nova", methods=["GET", "POST"])
 @login_required
 def nova():
+    if current_user.is_admin:
+        flash("O administrador não realiza cautelas. Utilize um operador.", "error")
+        return redirect(url_for("cautelas.lista"))
     if request.method == "POST":
         return _processar_nova()
 
@@ -176,6 +197,8 @@ def nova():
         .order_by(Material.nomenclatura).all()
     )
 
+    from flask import session as _sess
+    from ..utils.assinatura import janela_aberta as _janela_aberta
     return render_resp(
         "cautelas/nova.html",
         militares=militares,
@@ -184,6 +207,7 @@ def nova():
         hoje=date.today(),
         hoje_str=date.today().isoformat(),
         devolucao_padrao=date.today() + timedelta(days=7),
+        janela_aberta_flag=_janela_aberta(_sess),
     )
 
 
@@ -296,6 +320,24 @@ def _processar_nova():
 
     db.session.commit()
 
+    # Auto-aplica assinatura do operador se janela de confiança estiver aberta
+    if not current_user.is_admin and current_user.assinatura_base64:
+        from flask import session as _session
+        from ..utils.assinatura import janela_aberta, renovar_janela, ip_externo
+        from ..models import AssinaturaAplicada
+        if janela_aberta(_session):
+            _ass = AssinaturaAplicada(
+                tipo_documento="cautela_recebimento",
+                cautela_id=cautela.id,
+                papel="operador",
+                operador_id=current_user.id,
+                imagem_base64=current_user.assinatura_base64,
+                ip_origem=ip_externo(request),
+            )
+            db.session.add(_ass)
+            db.session.commit()
+            renovar_janela(_session)
+
     # Nome do recebedor para o log
     if cautela.militar:
         recebedor = f"{cautela.militar.graduacao or ''} {cautela.militar.nome_guerra or ''}".strip()
@@ -317,6 +359,10 @@ def _processar_nova():
 @bp.route("/<int:cautela_id>/devolver", methods=["POST"])
 @login_required
 def devolver(cautela_id):
+    if current_user.is_admin:
+        flash("O administrador não realiza devoluções. Utilize um operador.", "error")
+        return redirect(url_for("cautelas.detalhe", cautela_id=cautela_id))
+
     cautela = db.session.get(Cautela, cautela_id) or abort(404)
 
     if cautela.devolvida:

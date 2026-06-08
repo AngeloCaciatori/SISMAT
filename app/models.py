@@ -43,6 +43,10 @@ class Operador(db.Model, UserMixin):
     militar_id = db.Column(db.Integer, db.ForeignKey("militar.id"), nullable=True)
     militar = db.relationship("Militar", foreign_keys=[militar_id])
 
+    # Assinatura digital — base64 da imagem PNG capturada no canvas mobile
+    assinatura_base64 = db.Column(db.Text, nullable=True)
+    assinatura_cadastrada_em = db.Column(db.DateTime, nullable=True)
+
     # ----- senha -----
     def definir_senha(self, senha_clara: str) -> None:
         """Hashea a senha com bcrypt e armazena."""
@@ -338,3 +342,56 @@ class SolicitacaoReset(db.Model):
     atendida_em = db.Column(db.DateTime, nullable=True)
     atendida_por_id = db.Column(db.Integer, db.ForeignKey("operador.id"), nullable=True)
     solicitada_em = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+# ===================================================================
+#  TOKEN DE ASSINATURA — one-time token para autorizar assinatura
+# ===================================================================
+
+class TokenAssinatura(db.Model):
+    __tablename__ = "token_assinatura"
+
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(36), unique=True, nullable=False, index=True)
+    tipo = db.Column(db.String(40), nullable=False)
+    # tipos: "cadastro_operador" | "cautela_recebimento" | "cautela_devolucao" | "documento_recebedor"
+    operador_id = db.Column(db.Integer, db.ForeignKey("operador.id"), nullable=True)
+    cautela_id = db.Column(db.Integer, db.ForeignKey("cautela.id"), nullable=True)
+    documento_id = db.Column(db.Integer, nullable=True)
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    expira_em = db.Column(db.DateTime, nullable=False)
+    usado = db.Column(db.Boolean, default=False)
+    usado_em = db.Column(db.DateTime, nullable=True)
+    ip_origem = db.Column(db.String(45), nullable=True)
+    ip_uso = db.Column(db.String(45), nullable=True)
+
+    operador = db.relationship("Operador", foreign_keys=[operador_id])
+    cautela = db.relationship("Cautela", foreign_keys=[cautela_id])
+
+
+# ===================================================================
+#  ASSINATURA APLICADA — registro de cada assinatura coletada
+# ===================================================================
+
+class AssinaturaAplicada(db.Model):
+    __tablename__ = "assinatura_aplicada"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tipo_documento = db.Column(db.String(40), nullable=False)
+    # tipos: "cautela_recebimento" | "cautela_devolucao" | "documento"
+    cautela_id = db.Column(db.Integer, db.ForeignKey("cautela.id"), nullable=True)
+    documento_id = db.Column(db.Integer, nullable=True)
+    papel = db.Column(db.String(20), nullable=False)  # "operador" | "recebedor"
+    operador_id = db.Column(db.Integer, db.ForeignKey("operador.id"), nullable=True)
+    militar_id = db.Column(db.Integer, db.ForeignKey("militar.id"), nullable=True)
+    recebedor_externo_nome = db.Column(db.String(200), nullable=True)
+    recebedor_externo_cpf = db.Column(db.String(20), nullable=True)
+    imagem_base64 = db.Column(db.Text, nullable=False)
+    assinado_em = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    ip_origem = db.Column(db.String(45), nullable=False)
+    token_id = db.Column(db.Integer, db.ForeignKey("token_assinatura.id"), nullable=True)
+
+    operador_rel = db.relationship("Operador", foreign_keys=[operador_id])
+    militar_rel = db.relationship("Militar", foreign_keys=[militar_id])
+    cautela_rel = db.relationship("Cautela", foreign_keys=[cautela_id])
+    token_rel = db.relationship("TokenAssinatura", foreign_keys=[token_id])

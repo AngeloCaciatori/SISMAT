@@ -26,11 +26,13 @@
     <a href="{{ url_for('cautelas.imprimir', cautela_id=cautela.id) }}" target="_blank"
        class="btn btn-primary btn-small">📥 Imprimir Ficha (FIDU)</a>
     {% if not cautela.devolvida %}
-    <form method="POST" action="{{ url_for('cautelas.devolver', cautela_id=cautela.id) }}"
-          style="display:inline;" onsubmit="return confirm('Confirmar devolução desta cautela?');">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-primary btn-small">↺ Devolver</button>
-    </form>
+      {% if not current_user.is_admin %}
+      <form method="POST" action="{{ url_for('cautelas.devolver', cautela_id=cautela.id) }}"
+            style="display:inline;" onsubmit="return confirm('Confirmar devolução desta cautela?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-primary btn-small">↺ Devolver</button>
+      </form>
+      {% endif %}
     {% else %}
       {% if current_user.is_admin %}
       <form method="POST" action="{{ url_for('cautelas.reabrir', cautela_id=cautela.id) }}"
@@ -161,4 +163,354 @@
   </div>
   {% endif %}
 </div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  SEÇÃO DE ASSINATURAS                                          -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="panel" style="padding:24px; margin-top:16px;">
+  <h4 style="color:var(--verde-escuro); font-size:13px; text-transform:uppercase; margin-bottom:16px;">
+    🖊 Assinaturas
+  </h4>
+
+  {% if assinaturas %}
+  <div style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
+    {% for ass in assinaturas %}
+    <div style="border:1px solid var(--borda); border-radius:6px; padding:10px; min-width:200px; text-align:center; background:var(--areia);">
+      <div style="font-size:11px; color:var(--texto-claro); text-transform:uppercase; margin-bottom:6px;">
+        {% if ass.papel == 'operador' %}📋 Operador{% else %}✍ Recebedor{% endif %}
+        {% if ass.tipo_documento == 'cautela_devolucao' %}<br><span style="color:var(--khaki);">(devolução)</span>{% endif %}
+      </div>
+      <img src="{{ ass.imagem_base64 }}" alt="Assinatura"
+           style="max-width:200px; max-height:80px; border-bottom:1px solid #ccc; display:block; margin:0 auto 6px;">
+      <div style="font-size:11px; color:#555;">
+        {% if ass.operador_rel %}
+          {% if ass.operador_rel.militar %}
+            {{ ass.operador_rel.militar.graduacao }} {{ ass.operador_rel.militar.nome_guerra }}
+          {% else %}
+            {{ ass.operador_rel.login }}
+          {% endif %}
+        {% elif ass.militar_rel %}
+          {{ ass.militar_rel.graduacao }} {{ ass.militar_rel.nome_guerra }}
+        {% elif ass.recebedor_externo_nome %}
+          {{ ass.recebedor_externo_nome }}
+        {% endif %}
+      </div>
+      <div style="font-size:10px; color:#aaa; margin-top:2px;">
+        {{ ass.assinado_em.strftime('%d/%m/%Y %H:%M') if ass.assinado_em else '—' }}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="color:var(--texto-claro); font-size:13px; font-style:italic; margin-bottom:16px;">
+    Nenhuma assinatura registrada ainda.
+  </div>
+  {% endif %}
+
+  <!-- Botões de ação (operadores, exceto admin) -->
+  {% if not current_user.is_admin %}
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+
+    {# Botão: assinar como operador (recebimento) — se ainda não assinou #}
+    {% set ass_op_rec = assinaturas | selectattr('papel','eq','operador') | selectattr('tipo_documento','eq','cautela_recebimento') | list %}
+    {% if not ass_op_rec and not cautela.devolvida %}
+    <button type="button" class="btn btn-secondary btn-small"
+            onclick="abrirModalOperador('cautela_recebimento')">
+      🖋 Assinar como operador (recebimento)
+    </button>
+    {% endif %}
+
+    {# Botão: assinar como operador (devolução) — se devolvida e ainda não assinou #}
+    {% set ass_op_dev = assinaturas | selectattr('papel','eq','operador') | selectattr('tipo_documento','eq','cautela_devolucao') | list %}
+    {% if cautela.devolvida and not ass_op_dev %}
+    <button type="button" class="btn btn-secondary btn-small"
+            onclick="abrirModalOperador('cautela_devolucao')">
+      🖋 Assinar como operador (devolução)
+    </button>
+    {% endif %}
+
+    {# Botão: coletar assinatura do recebedor (recebimento) #}
+    {% set ass_rec_rec = assinaturas | selectattr('papel','eq','recebedor') | selectattr('tipo_documento','eq','cautela_recebimento') | list %}
+    {% if not ass_rec_rec and not cautela.devolvida %}
+    <button type="button" class="btn btn-primary btn-small"
+            onclick="gerarQrRecebedor('cautela_recebimento')">
+      📱 Coletar assinatura do recebedor
+    </button>
+    {% endif %}
+
+    {# Botão: coletar assinatura do recebedor (devolução) #}
+    {% set ass_rec_dev = assinaturas | selectattr('papel','eq','recebedor') | selectattr('tipo_documento','eq','cautela_devolucao') | list %}
+    {% if cautela.devolvida and not ass_rec_dev %}
+    <button type="button" class="btn btn-primary btn-small"
+            onclick="gerarQrRecebedor('cautela_devolucao')">
+      📱 Coletar assinatura recebedor (devolução)
+    </button>
+    {% endif %}
+
+  </div>
+  {% endif %}
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  MODAL: Senha do Operador                                       -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="modal-senha" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);
+     z-index:900; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:8px; box-shadow:0 4px 24px rgba(0,0,0,.3);
+              padding:28px 32px; max-width:400px; width:90%; position:relative;">
+    <button onclick="fecharModalSenha()" style="position:absolute; top:12px; right:14px;
+            background:none; border:none; font-size:20px; cursor:pointer; color:#aaa;">✕</button>
+    <h3 style="color:var(--primary,#1e3a5f); margin-bottom:8px; font-size:16px;">
+      🔐 Confirmar identidade
+    </h3>
+    <p style="font-size:13px; color:#666; margin-bottom:16px;">
+      Digite sua senha para aplicar a assinatura.
+    </p>
+    <div id="modal-senha-erro" style="display:none; background:#f8d7da; color:#721c24;
+         border-radius:4px; padding:8px 12px; font-size:13px; margin-bottom:10px;"></div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label style="font-size:12px; color:#666;">Senha</label>
+      <input type="password" id="input-senha" class="form-control"
+             style="width:100%; padding:8px; border:1px solid var(--borda,#ccc);
+                    border-radius:4px; font-size:14px;"
+             onkeydown="if(event.key==='Enter') confirmarSenha()">
+    </div>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn btn-secondary btn-small" onclick="fecharModalSenha()">Cancelar</button>
+      <button class="btn btn-primary btn-small" id="btn-confirmar-senha"
+              onclick="confirmarSenha()">Confirmar →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  MODAL: QR Recebedor                                           -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="modal-qr" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);
+     z-index:900; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:8px; box-shadow:0 4px 24px rgba(0,0,0,.3);
+              padding:28px 32px; max-width:440px; width:90%; text-align:center; position:relative;">
+    <button onclick="fecharModalQr()" style="position:absolute; top:12px; right:14px;
+            background:none; border:none; font-size:20px; cursor:pointer; color:#aaa;">✕</button>
+    <h3 style="color:var(--primary,#1e3a5f); margin-bottom:8px; font-size:16px;">
+      📱 Assinatura do Recebedor
+    </h3>
+    <p style="font-size:13px; color:#666; margin-bottom:16px;">
+      Aponte o celular do recebedor para o QR Code abaixo.
+    </p>
+    <div id="qr-img-container">
+      <div style="color:#aaa; font-size:13px; padding:20px;">Gerando QR Code…</div>
+    </div>
+    <div id="qr-timer" style="margin-top:10px; font-size:13px; color:#888;">
+      Expira em <span id="qr-countdown" style="font-weight:bold; color:#c0392b;">5:00</span>
+    </div>
+    <div id="qr-aguardando" style="margin-top:10px; font-size:12px; color:#aaa;">
+      Aguardando assinatura…
+    </div>
+    <div id="qr-ok" style="display:none; font-size:18px; color:#27ae60; font-weight:bold;
+         margin-top:10px;">✅ Assinatura coletada! Recarregando…</div>
+    <div id="qr-expirado" style="display:none; font-size:14px; color:#c0392b; margin-top:10px;">
+      ⏰ Token expirado.
+      <button class="btn btn-secondary btn-small" onclick="fecharModalQr()" style="margin-left:8px;">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var CAUTELA_ID  = {{ cautela.id }};
+  var CSRF_TOKEN  = {{ csrf_token() | tojson }};
+  var _tipoDocOp  = 'cautela_recebimento';
+  var _qrToken    = null;
+  var _qrPollInt  = null;
+  var _qrTickInt  = null;
+  var _qrSeg      = 300;
+
+  /* ─── Devolver com assinatura ─────────────────────────────── */
+  {% if not cautela.devolvida and not current_user.is_admin %}
+  var formDevolver = document.querySelector('form[action*="/devolver"]');
+  if (formDevolver) {
+    formDevolver.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!confirm('Confirmar devolução desta cautela?')) return;
+      {% if not current_user.assinatura_base64 %}
+        alert('Você ainda não cadastrou sua assinatura. Procure o administrador.');
+        return;
+      {% endif %}
+      _tipoDocOp = 'cautela_devolucao';
+      // Tenta aplicar direto (se janela aberta); se não, pede senha
+      aplicarAssinaturaOp(function() {
+        formDevolver.submit();
+      });
+    });
+  }
+  {% endif %}
+
+  /* ─── Modal Operador ───────────────────────────────────────── */
+  window.abrirModalOperador = function(tipo) {
+    {% if not current_user.assinatura_base64 %}
+    alert('Você ainda não cadastrou sua assinatura digital.\nProcure o administrador para autorizar.');
+    return;
+    {% endif %}
+    _tipoDocOp = tipo;
+    aplicarAssinaturaOp(function() { location.reload(); });
+  };
+
+  function aplicarAssinaturaOp(callbackOk) {
+    var fd = new FormData();
+    fd.append('cautela_id', CAUTELA_ID);
+    fd.append('tipo', _tipoDocOp);
+    fetch('/assinatura/aplicar-operador', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+      body: fd,
+    })
+    .then(function(r){ return r.json().then(function(d){ return {status:r.status, d:d}; }); })
+    .then(function(x) {
+      if (x.d.ok) {
+        callbackOk();
+      } else if (x.d.precisa_senha) {
+        abrirModalSenha(callbackOk);
+      } else {
+        alert(x.d.erro || 'Erro ao assinar.');
+      }
+    })
+    .catch(function(){ alert('Falha na conexão.'); });
+  }
+
+  var _callbackAposSenha = null;
+
+  function abrirModalSenha(cb) {
+    _callbackAposSenha = cb;
+    document.getElementById('input-senha').value = '';
+    document.getElementById('modal-senha-erro').style.display = 'none';
+    document.getElementById('modal-senha').style.display = 'flex';
+    setTimeout(function(){ document.getElementById('input-senha').focus(); }, 100);
+  }
+
+  window.fecharModalSenha = function() {
+    document.getElementById('modal-senha').style.display = 'none';
+    _callbackAposSenha = null;
+  };
+
+  window.confirmarSenha = function() {
+    var senha = document.getElementById('input-senha').value;
+    if (!senha) { mostrarErroSenha('Digite sua senha.'); return; }
+
+    var btn = document.getElementById('btn-confirmar-senha');
+    btn.disabled = true;
+
+    var fd = new FormData();
+    fd.append('senha', senha);
+    fetch('/assinatura/senha-confirma', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+      body: fd,
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      btn.disabled = false;
+      if (d.ok) {
+        fecharModalSenha();
+        // Janela agora aberta — aplica a assinatura
+        var fd2 = new FormData();
+        fd2.append('cautela_id', CAUTELA_ID);
+        fd2.append('tipo', _tipoDocOp);
+        fetch('/assinatura/aplicar-operador', {
+          method: 'POST',
+          headers: { 'X-CSRFToken': CSRF_TOKEN },
+          body: fd2,
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(d2){
+          if (d2.ok && _callbackAposSenha) _callbackAposSenha();
+          else if (!d2.ok) alert(d2.erro || 'Erro ao aplicar assinatura.');
+        });
+      } else {
+        mostrarErroSenha(d.erro || 'Senha incorreta.');
+      }
+    })
+    .catch(function(){ btn.disabled = false; mostrarErroSenha('Falha na conexão.'); });
+  };
+
+  function mostrarErroSenha(msg) {
+    var el = document.getElementById('modal-senha-erro');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  /* ─── Modal QR Recebedor ───────────────────────────────────── */
+  window.gerarQrRecebedor = function(tipo) {
+    document.getElementById('modal-qr').style.display = 'flex';
+    document.getElementById('qr-img-container').innerHTML =
+      '<div style="color:#aaa; font-size:13px; padding:20px;">Gerando QR Code…</div>';
+    document.getElementById('qr-ok').style.display      = 'none';
+    document.getElementById('qr-expirado').style.display= 'none';
+    document.getElementById('qr-aguardando').style.display = 'block';
+    document.getElementById('qr-timer').style.display   = 'block';
+    _qrSeg = 300;
+
+    var fd = new FormData();
+    fd.append('cautela_id', CAUTELA_ID);
+    fd.append('tipo', tipo);
+    fetch('/assinatura/qr-recebedor', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+      body: fd,
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (!d.ok) { alert(d.erro || 'Erro ao gerar QR.'); fecharModalQr(); return; }
+      _qrToken = d.token;
+      document.getElementById('qr-img-container').innerHTML =
+        '<img src="' + d.qr_data_uri + '" style="max-width:220px; border:3px solid #1e3a5f; border-radius:4px;">';
+
+      _qrTickInt = setInterval(function() {
+        if (_qrSeg <= 0) {
+          clearInterval(_qrTickInt);
+          clearInterval(_qrPollInt);
+          document.getElementById('qr-aguardando').style.display = 'none';
+          document.getElementById('qr-timer').style.display = 'none';
+          document.getElementById('qr-expirado').style.display = 'block';
+          return;
+        }
+        var m = Math.floor(_qrSeg/60), s = _qrSeg%60;
+        document.getElementById('qr-countdown').textContent =
+          m + ':' + (s<10?'0':'') + s;
+        _qrSeg--;
+      }, 1000);
+
+      var statusUrl = '/assinatura/cautela/' + CAUTELA_ID + '/status-recebedor?tipo=' + tipo + '&token=' + _qrToken;
+      _qrPollInt = setInterval(function() {
+        fetch(statusUrl)
+          .then(function(r){ return r.json(); })
+          .then(function(d) {
+            if (d.status === 'ok') {
+              clearInterval(_qrPollInt);
+              clearInterval(_qrTickInt);
+              document.getElementById('qr-aguardando').style.display = 'none';
+              document.getElementById('qr-timer').style.display = 'none';
+              document.getElementById('qr-ok').style.display = 'block';
+              setTimeout(function(){ location.reload(); }, 2000);
+            } else if (d.status === 'expirado') {
+              clearInterval(_qrPollInt);
+              clearInterval(_qrTickInt);
+              document.getElementById('qr-aguardando').style.display = 'none';
+              document.getElementById('qr-timer').style.display = 'none';
+              document.getElementById('qr-expirado').style.display = 'block';
+            }
+          })
+          .catch(function(){});
+      }, 2000);
+    })
+    .catch(function(){ alert('Falha na conexão.'); fecharModalQr(); });
+  };
+
+  window.fecharModalQr = function() {
+    clearInterval(_qrPollInt);
+    clearInterval(_qrTickInt);
+    document.getElementById('modal-qr').style.display = 'none';
+  };
+})();
+</script>
 {% endblock %}
