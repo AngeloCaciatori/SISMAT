@@ -2,7 +2,10 @@
 
 import secrets
 import shutil
+import sqlite3
 import string
+import tempfile
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from flask import (
@@ -13,7 +16,7 @@ from flask_login import login_required, current_user
 
 from ..extensions import db
 from ..auth import admin_required
-from ..models import Operador, Militar, LogAuditoria, NIVEL_ADMIN, NIVEL_OPERADOR
+from ..models import Operador, Militar, LogAuditoria, NIVEL_ADMIN, NIVEL_OPERADOR, BackupLog
 
 bp = Blueprint("operadores", __name__)
 
@@ -174,13 +177,29 @@ def _pasta_backups():
     return base, pasta
 
 
+def _restaurar_db(source_path: Path) -> None:
+    """Substitui o banco ativo pelo source_path via sqlite3.backup() (atômico).
+    Seguro mesmo com Flask em execução — não requer parar o servidor.
+    """
+    db_path = Path(
+        current_app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "")
+    )
+    src = sqlite3.connect(str(source_path))
+    dst = sqlite3.connect(str(db_path))
+    try:
+        src.backup(dst)
+    finally:
+        src.close()
+        dst.close()
+
+
 @bp.route("/backup")
 @login_required
 @admin_required
 def backup_lista():
     base, pasta_backups = _pasta_backups()
     arquivos = []
-    for p in sorted(pasta_backups.glob("sismat-*.db"), reverse=True):
+    for p in sorted(pasta_backups.glob("sismat-*.zip"), reverse=True):
         st = p.stat()
         arquivos.append({
             "nome": p.name,
@@ -189,14 +208,28 @@ def backup_lista():
         })
 
     db_atual = base / "sismat.db"
-    tamanho_atual = db_atual.stat().st_size / 1024 if db_atual.exists() else 0
+    db_info = {
+        "path": str(db_atual),
+        "existe": db_atual.exists(),
+        "tamanho_kb": db_atual.stat().st_size / 1024 if db_atual.exists() else 0,
+        "modificado": datetime.fromtimestamp(db_atual.stat().st_mtime) if db_atual.exists() else None,
+    }
+
+    # Últimos registros do log de backup
+    try:
+        ultimos_logs = (
+            BackupLog.query.order_by(BackupLog.criado_em.desc()).limit(20).all()
+        )
+    except Exception:
+        ultimos_logs = []
 
     return render_template(
         "operadores/backup.html",
         arquivos=arquivos[:30],
         total=len(arquivos),
-        tamanho_atual=tamanho_atual,
+        db_info=db_info,
         pasta=str(pasta_backups),
+        ultimos_logs=ultimos_logs,
     )
 
 
@@ -204,19 +237,103 @@ def backup_lista():
 @login_required
 @admin_required
 def backup_criar():
-    base, pasta_backups = _pasta_backups()
-    db_path = base / "sismat.db"
-    if not db_path.exists():
-        flash("Banco não encontrado.", "error")
+    """Cria backup manualmente via interface web (tipo 'manual')."""
+    import subprocess
+    import sys
+    base = Path(current_app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "")).parent.parent
+    python = Path(sys.executable)
+    script = base / "scripts" / "backup_db.py"
+    try:
+        result = subprocess.run(
+            [str(python), str(script), "--tipo", "diario"],
+            capture_output=True, text=True, timeout=60, cwd=str(base)
+        )
+        if result.returncode == 0:
+            flash("Backup criado com sucesso.", "success")
+        else:
+            flash(f"Erro no backup: {result.stderr[-300:]}", "error")
+    except Exception as e:
+        flash(f"Erro ao executar backup: {e}", "error")
+    return redirect(url_for("operadores.backup_lista"))
+
+
+
+@bp.route("/backup/importar", methods=["POST"])
+@login_required
+@admin_required
+def backup_importar():
+    """Importa um banco externo (ZIP de backup ou .db direto) enviado pelo usuário."""
+    arq = request.files.get("arquivo")
+    if not arq or not arq.filename:
+        flash("Nenhum arquivo selecionado.", "error")
         return redirect(url_for("operadores.backup_lista"))
 
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M")
-    nome = f"sismat-{timestamp}.db"
-    destino = pasta_backups / nome
-    shutil.copy2(db_path, destino)
+    nome = arq.filename
+    if not (nome.endswith(".zip") or nome.endswith(".db")):
+        flash("Formato inválido. Envie um arquivo .zip (backup SISMAT) ou .db (SQLite direto).", "error")
+        return redirect(url_for("operadores.backup_lista"))
 
-    tamanho_kb = destino.stat().st_size / 1024
-    flash(f"Backup criado: {nome} ({tamanho_kb:.1f} KB)", "success")
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            if nome.endswith(".zip"):
+                zip_path = tmp / "upload.zip"
+                arq.save(str(zip_path))
+                with zipfile.ZipFile(zip_path) as zf:
+                    if "sismat.db" not in zf.namelist():
+                        flash("ZIP inválido: não contém o arquivo sismat.db.", "error")
+                        return redirect(url_for("operadores.backup_lista"))
+                    zf.extract("sismat.db", tmp)
+                _restaurar_db(tmp / "sismat.db")
+            else:  # .db direto
+                db_path = tmp / "upload.db"
+                arq.save(str(db_path))
+                _restaurar_db(db_path)
+
+        flash(
+            f"Banco importado com sucesso a partir de '{nome}'. "
+            "Recarregue a página para ver os dados atualizados.",
+            "success"
+        )
+    except Exception as e:
+        flash(f"Erro ao importar banco: {e}", "error")
+
+    return redirect(url_for("operadores.backup_lista"))
+
+
+@bp.route("/backup/<nome>/restaurar", methods=["POST"])
+@login_required
+@admin_required
+def backup_restaurar(nome):
+    """Restaura o banco a partir de um backup ZIP já existente na pasta de backups."""
+    if "/" in nome or "\\" in nome or ".." in nome:
+        abort(400)
+    if not nome.endswith(".zip"):
+        abort(400)
+
+    _, pasta = _pasta_backups()
+    zip_path = pasta / nome
+    if not zip_path.exists():
+        abort(404)
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            with zipfile.ZipFile(zip_path) as zf:
+                if "sismat.db" not in zf.namelist():
+                    flash("ZIP inválido: não contém sismat.db.", "error")
+                    return redirect(url_for("operadores.backup_lista"))
+                zf.extract("sismat.db", tmp)
+            _restaurar_db(tmp / "sismat.db")
+
+        flash(
+            f"Banco restaurado a partir de '{nome}'. "
+            "Recarregue a página para ver os dados atualizados.",
+            "success"
+        )
+    except Exception as e:
+        flash(f"Erro ao restaurar backup: {e}", "error")
+
     return redirect(url_for("operadores.backup_lista"))
 
 
@@ -225,6 +342,8 @@ def backup_criar():
 @admin_required
 def backup_baixar(nome):
     if "/" in nome or "\\" in nome or ".." in nome:
+        abort(400)
+    if not (nome.endswith(".db") or nome.endswith(".zip")):
         abort(400)
     _, pasta = _pasta_backups()
     arq = pasta / nome

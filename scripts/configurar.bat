@@ -92,6 +92,17 @@ echo [%DATE% %TIME%] Aplicando migracoes... >> "%LOG%"
 echo Aplicando migracoes...
 "%VENV%\Scripts\python.exe" "%APP%scripts\migrar_v2.py" >> "%LOG%" 2>&1
 "%VENV%\Scripts\python.exe" "%APP%scripts\migrar_v3.py" >> "%LOG%" 2>&1
+"%VENV%\Scripts\python.exe" "%APP%scripts\migrar_v4.py" >> "%LOG%" 2>&1
+"%VENV%\Scripts\python.exe" "%APP%scripts\migrar_v5.py" >> "%LOG%" 2>&1
+
+:: ---- Agendador de backup ----
+echo [%DATE% %TIME%] Configurando tarefas de backup... >> "%LOG%"
+echo Configurando agendador de backup...
+schtasks /Create /TN "SISMAT Backup Diario"  /SC DAILY   /ST 15:00 /TR "\"%VENV%\Scripts\python.exe\" \"%APP%scripts\backup_db.py\" --tipo diario"  /F >> "%LOG%" 2>&1
+schtasks /Create /TN "SISMAT Backup Semanal" /SC WEEKLY  /D MON /ST 15:30 /TR "\"%VENV%\Scripts\python.exe\" \"%APP%scripts\backup_db.py\" --tipo semanal" /F >> "%LOG%" 2>&1
+schtasks /Create /TN "SISMAT Backup Mensal"  /SC MONTHLY /D 1   /ST 15:45 /TR "\"%VENV%\Scripts\python.exe\" \"%APP%scripts\backup_db.py\" --tipo mensal"  /F >> "%LOG%" 2>&1
+schtasks /Create /TN "SISMAT Backup Anual"   /SC MONTHLY /D 1 /MO 12 /ST 15:45 /TR "\"%VENV%\Scripts\python.exe\" \"%APP%scripts\backup_db.py\" --tipo anual"   /F >> "%LOG%" 2>&1
+echo   Tarefas de backup configuradas. >> "%LOG%"
 
 :: ---- Fim ----
 echo. >> "%LOG%"

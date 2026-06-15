@@ -146,6 +146,10 @@ REM --- 6b. Migracao v3 (assinatura digital) ---
 echo [INFO] Aplicando migracao v3 ^(assinatura digital^)...
 .venv\Scripts\python.exe scripts\migrar_v3.py
 
+REM --- 6c. Migracao v4 (situacao militar + backup) ---
+echo [INFO] Aplicando migracao v4 ^(situacao + backup^)...
+.venv\Scripts\python.exe scripts\migrar_v4.py
+
 REM --- 7. Importacao opcional ---
 if exist "data\csv_legacy\DADOS DO EFETIVO.csv" (
     echo.

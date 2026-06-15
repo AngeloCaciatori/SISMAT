@@ -15,7 +15,10 @@ from sqlalchemy import or_, func
 from ..extensions import db
 from .. import render_resp
 from ..auth import admin_required
-from ..models import Militar, Medidas, Cautela, ItemCautelado, LogAuditoria
+from ..models import (
+    Militar, Medidas, Cautela, ItemCautelado, LogAuditoria,
+    SITUACAO_ATIVO, SITUACAO_EXCLUIDO, SITUACAO_TRANSFERIDO, SITUACAO_LICENCA,
+)
 from ..utils import registrar_log
 
 
@@ -61,8 +64,6 @@ GRADUACAO_ALIASES = {
     "TEN CEL": "Ten Cel", "CEL": "Cel",
     "GEN BRIG": "Gen Brig", "GEN DIV": "Gen Div", "GEN EXE": "Gen Exe",
 }
-
-PRAZO_EXCLUSAO_DIAS = 60
 
 
 def chave_graduacao(grad):
@@ -148,12 +149,12 @@ def _validar_cpf(cpf):
 def lista():
     busca = (request.args.get("q") or "").strip()
     graduacao = (request.args.get("graduacao") or "").strip()
-    incluir_excluidos = request.args.get("incluir_excluidos") == "1"
+    incluir_inativos = request.args.get("incluir_excluidos") == "1"
     com_foto = request.args.get("com_foto", "")
 
     query = Militar.query
-    if not incluir_excluidos:
-        query = query.filter_by(excluido=False)
+    if not incluir_inativos:
+        query = query.filter(Militar.situacao == SITUACAO_ATIVO)
 
     if busca:
         like = f"%{busca}%"
@@ -177,25 +178,16 @@ def lista():
         (m.nome_guerra or "").upper(),
     ))
 
-    total = Militar.query.filter_by(excluido=False).count()
+    total = Militar.query.filter(Militar.situacao == SITUACAO_ATIVO).count()
     com_foto_count = (
-        Militar.query.filter_by(excluido=False)
+        Militar.query.filter(Militar.situacao == SITUACAO_ATIVO)
         .filter(Militar.foto_path.isnot(None)).count()
     )
     com_medidas_count = (
         db.session.query(func.count(Medidas.id))
-        .join(Militar).filter(Militar.excluido.is_(False)).scalar() or 0
+        .join(Militar).filter(Militar.situacao == SITUACAO_ATIVO).scalar() or 0
     )
-    excluidos_count = Militar.query.filter_by(excluido=True).count()
-
-    # Calcula dias restantes até exclusão permanente para os já excluídos
-    hoje = datetime.utcnow()
-    info_excluidos = {}
-    for m in militares:
-        if m.excluido and m.excluido_em:
-            decorridos = (hoje - m.excluido_em).days
-            restantes = max(0, PRAZO_EXCLUSAO_DIAS - decorridos)
-            info_excluidos[m.id] = restantes
+    inativos_count = Militar.query.filter(Militar.situacao != SITUACAO_ATIVO).count()
 
     return render_resp(
         "efetivo/lista.html",
@@ -203,12 +195,10 @@ def lista():
         total=total,
         com_foto_count=com_foto_count,
         com_medidas_count=com_medidas_count,
-        excluidos_count=excluidos_count,
+        inativos_count=inativos_count,
         busca=busca, graduacao=graduacao,
-        incluir_excluidos=incluir_excluidos, com_foto=com_foto,
+        incluir_excluidos=incluir_inativos, com_foto=com_foto,
         graduacoes=_graduacoes_existentes_ordenadas(),
-        info_excluidos=info_excluidos,
-        prazo_exclusao=PRAZO_EXCLUSAO_DIAS,
     )
 
 
@@ -220,17 +210,18 @@ def detalhe(mil_id):
         Cautela.query.filter_by(militar_id=militar.id, devolvida=False)
         .order_by(Cautela.data_cautela.desc()).all()
     )
-    dias_restantes = None
-    if militar.excluido and militar.excluido_em:
-        decorridos = (datetime.utcnow() - militar.excluido_em).days
-        dias_restantes = max(0, PRAZO_EXCLUSAO_DIAS - decorridos)
-
+    hist_page = request.args.get("hist_page", 1, type=int)
+    cautelas_devolvidas = (
+        Cautela.query.filter_by(militar_id=militar.id, devolvida=True)
+        .order_by(Cautela.devolvida_em.desc())
+        .paginate(page=hist_page, per_page=15, error_out=False)
+    )
     return render_resp(
         "efetivo/detalhe.html",
         militar=militar,
         cautelas_ativas=cautelas_ativas,
-        dias_restantes=dias_restantes,
-        prazo_exclusao=PRAZO_EXCLUSAO_DIAS,
+        cautelas_devolvidas=cautelas_devolvidas,
+        SITUACAO_ATIVO=SITUACAO_ATIVO,
     )
 
 
@@ -426,98 +417,112 @@ def atualizar_medidas(mil_id):
         med = Medidas(militar_id=militar.id)
         db.session.add(med)
 
-    med.ombro = (request.form.get("ombro") or "").strip() or None
-    med.cintura = (request.form.get("cintura") or "").strip() or None
-    med.quadril = (request.form.get("quadril") or "").strip() or None
-    med.cabeca = (request.form.get("cabeca") or "").strip() or None
-    med.pe = (request.form.get("pe") or "").strip() or None
-    med.braco = (request.form.get("braco") or "").strip() or None
+    _TAMANHOS_VALIDOS = {"PP", "P", "M", "G", "GG", "XG"}
+
+    def _val_tamanho(campo):
+        """Valida select de tamanho (PP/P/M/G/GG/XG). Retorna None se vazio."""
+        raw = (request.form.get(campo) or "").strip().upper()
+        if not raw:
+            return None
+        return raw if raw in _TAMANHOS_VALIDOS else "INVALIDO"
+
+    def _val_int(campo, minv, maxv):
+        """Valida campo numérico. Retorna string inteira, None se vazio, ou 'INVALIDO'."""
+        raw = (request.form.get(campo) or "").strip()
+        if not raw:
+            return None
+        try:
+            v = int(raw)
+        except (TypeError, ValueError):
+            return "INVALIDO"
+        return str(v) if minv <= v <= maxv else "INVALIDO"
+
+    camisa_val = _val_tamanho("camisa")
+    calca_val  = _val_tamanho("calca")
+    cabeca_val = _val_int("cabeca", 50, 70)
+    pe_val     = _val_int("pe", 30, 50)
+
+    invalidos = []
+    if camisa_val == "INVALIDO": invalidos.append("Camisa/Gandola")
+    if calca_val  == "INVALIDO": invalidos.append("Calca/Shorts")
+    if cabeca_val == "INVALIDO": invalidos.append("Cabeca (50-70 cm)")
+    if pe_val     == "INVALIDO": invalidos.append("Pe (30-50)")
+
+    if invalidos:
+        flash(
+            "Valor invalido nos campos: {}. Verifique e tente novamente.".format(
+                ", ".join(invalidos)
+            ),
+            "error",
+        )
+        return redirect(url_for("efetivo.detalhe", mil_id=militar.id))
+
+    med.camisa  = camisa_val
+    med.calca   = calca_val
+    med.cabeca  = cabeca_val
+    med.pe      = pe_val
 
     db.session.commit()
     flash("Medidas atualizadas.", "success")
     return redirect(url_for("efetivo.detalhe", mil_id=militar.id))
 
 
-@bp.route("/<int:mil_id>/excluir", methods=["POST"])
-@login_required
-def excluir(mil_id):
-    militar = db.session.get(Militar, mil_id) or abort(404)
+SITUACOES_VALIDAS = {
+    SITUACAO_ATIVO: "Ativo",
+    SITUACAO_EXCLUIDO: "Excluído",
+    SITUACAO_TRANSFERIDO: "Transferido",
+    SITUACAO_LICENCA: "Licença",
+}
 
-    cautelas_abertas = Cautela.query.filter_by(
-        militar_id=militar.id, devolvida=False
-    ).count()
-    if cautelas_abertas > 0:
-        flash(
-            f"Não é possível excluir — {militar.graduacao or ''} {militar.nome_guerra or militar.cpf} "
-            f"tem {cautelas_abertas} cautela(s) ativa(s).",
-            "error",
-        )
+
+@bp.route("/<int:mil_id>/mudar-situacao", methods=["POST"])
+@login_required
+def mudar_situacao(mil_id):
+    """Muda a situação de um militar (ATIVO / EXCLUIDO / TRANSFERIDO / LICENCA)."""
+    militar = db.session.get(Militar, mil_id) or abort(404)
+    nova_sit = (request.form.get("situacao") or "").strip().upper()
+    motivo = (request.form.get("motivo") or "").strip() or None
+
+    if nova_sit not in SITUACOES_VALIDAS:
+        flash("Situação inválida.", "error")
         return redirect(url_for("efetivo.detalhe", mil_id=militar.id))
 
-    militar.excluido = True
-    militar.excluido_em = datetime.utcnow()
+    # Impede saída de ATIVO se há cautelas abertas
+    if nova_sit != SITUACAO_ATIVO and militar.situacao == SITUACAO_ATIVO:
+        cautelas_abertas = Cautela.query.filter_by(
+            militar_id=militar.id, devolvida=False
+        ).count()
+        if cautelas_abertas > 0:
+            nome = f"{militar.graduacao or ''} {militar.nome_guerra or militar.cpf}"
+            flash(
+                f"Não é possível alterar situação — {nome} "
+                f"tem {cautelas_abertas} cautela(s) ativa(s).",
+                "error",
+            )
+            return redirect(url_for("efetivo.detalhe", mil_id=militar.id))
+
+    situacao_anterior = militar.situacao
+    militar.situacao = nova_sit
+    militar.situacao_em = datetime.utcnow()
+    militar.situacao_motivo = motivo
+
+    # Mantém backward compat com campos legados
+    if nova_sit == SITUACAO_EXCLUIDO:
+        militar.excluido = True
+        militar.excluido_em = militar.situacao_em
+    elif nova_sit == SITUACAO_ATIVO:
+        militar.excluido = False
+        militar.excluido_em = None
+
     db.session.commit()
+
     nome_log = f"{militar.graduacao or ''} {militar.nome_guerra or militar.cpf}".strip()
-    registrar_log("EXCLUSAO_MILITAR", nome_log, referencia_id=militar.id)
-    flash(
-        f"{nome_log} marcado como excluído. "
-        f"Pode ser restaurado por até {PRAZO_EXCLUSAO_DIAS} dias.",
-        "success",
+    descricao = (
+        f"{nome_log}: {situacao_anterior} → {nova_sit}"
+        + (f" (motivo: {motivo})" if motivo else "")
     )
-    return redirect(url_for("efetivo.lista"))
+    registrar_log("MUDANCA_SITUACAO_MILITAR", descricao, referencia_id=militar.id)
 
-
-@bp.route("/<int:mil_id>/restaurar", methods=["POST"])
-@login_required
-def restaurar(mil_id):
-    militar = db.session.get(Militar, mil_id) or abort(404)
-    militar.excluido = False
-    militar.excluido_em = None
-    db.session.commit()
-    nome_log = f"{militar.graduacao or ''} {militar.nome_guerra or militar.cpf}".strip()
-    registrar_log("RESTAURACAO_MILITAR", nome_log, referencia_id=militar.id)
-    flash(f"{nome_log} restaurado.", "success")
+    label_nova = SITUACOES_VALIDAS[nova_sit]
+    flash(f"{nome_log} — situação alterada para {label_nova}.", "success")
     return redirect(url_for("efetivo.detalhe", mil_id=militar.id))
-
-
-@bp.route("/<int:mil_id>/excluir-permanente", methods=["POST"])
-@login_required
-def excluir_permanente(mil_id):
-    """Apaga DEFINITIVAMENTE — só permitido após 60 dias e sem histórico."""
-    militar = db.session.get(Militar, mil_id) or abort(404)
-
-    if not militar.excluido or not militar.excluido_em:
-        flash("Marque como excluído primeiro e aguarde o prazo.", "error")
-        return redirect(url_for("efetivo.detalhe", mil_id=militar.id))
-
-    decorridos = (datetime.utcnow() - militar.excluido_em).days
-    if decorridos < PRAZO_EXCLUSAO_DIAS:
-        rest = PRAZO_EXCLUSAO_DIAS - decorridos
-        flash(
-            f"Aguarde {rest} dia(s) para apagar definitivamente.",
-            "error",
-        )
-        return redirect(url_for("efetivo.detalhe", mil_id=militar.id))
-
-    if militar.cautelas:
-        flash(
-            "Não pode apagar permanentemente — militar tem histórico de cautelas. "
-            "O registro precisa ser preservado.",
-            "error",
-        )
-        return redirect(url_for("efetivo.detalhe", mil_id=militar.id))
-
-    # Remove foto física
-    if militar.foto_path:
-        p = Path(current_app.config["UPLOAD_FOLDER"]) / militar.foto_path
-        if p.exists():
-            try:
-                p.unlink()
-            except OSError:
-                pass
-
-    nome = f"{militar.graduacao or ''} {militar.nome_guerra or militar.cpf}"
-    db.session.delete(militar)
-    db.session.commit()
-    flash(f"{nome} apagado definitivamente.", "success")
-    return redirect(url_for("efetivo.lista"))

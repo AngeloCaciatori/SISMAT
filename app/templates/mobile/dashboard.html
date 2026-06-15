@@ -60,5 +60,21 @@
     </div>
   </div>
 
+  {% if current_user.is_admin %}
+  <a href="{{ url_for('operadores.backup_lista') }}" style="text-decoration:none;">
+    <div class="stat-card-mobile {% if not ultimo_backup %}warning{% endif %}">
+      <span class="stat-icon-mobile">&#128190;</span>
+      <div class="stat-info-mobile">
+        <div class="stat-value" style="font-size:14px;">
+          {% if ultimo_backup %}{{ ultimo_backup.criado_em.strftime('%d/%m') }}{% else %}—{% endif %}
+        </div>
+        <div class="stat-label">Último backup
+          {% if ultimo_backup and ultimo_backup.copia_ok %}&middot; &#10003; Docs OK{% endif %}
+        </div>
+      </div>
+    </div>
+  </a>
+  {% endif %}
+
 </div>
 {% endblock %}
