@@ -1,0 +1,84 @@
+{% extends "mobile/base_mobile.html" %}
+
+{% block title %}Cautelas{% endblock %}
+{% block page_title %}Cautelas{% endblock %}
+{% block back_url %}{{ url_for('main.dashboard') }}{% endblock %}
+
+{% block content %}
+
+<div class="search-mobile">
+  <input type="search" id="busca" placeholder="Buscar número ou militar..." autocomplete="off">
+</div>
+
+<div style="padding: 8px 12px 0; display:flex; gap:8px;">
+  <a href="{{ url_for('cautelas.nova') }}" class="btn-mobile btn-primary" style="flex:1;">
+    &#43; Nova Cautela
+  </a>
+</div>
+
+<div class="lista-mobile" id="lista-cautelas">
+  {% for c in cautelas %}
+  <div class="card-mobile item-cautela"
+       data-busca="{{ c.numero|lower }} {{ c.militar.nome_guerra|lower if c.militar else '' }} {{ c.militar.graduacao|lower if c.militar else '' }}">
+
+    <div class="card-mobile-header">
+      <div>
+        <div class="card-mobile-title">{{ c.numero }}</div>
+        <div class="card-mobile-sub">
+          {% if c.militar %}
+            {{ c.militar.graduacao }} {{ c.militar.nome_guerra }}
+          {% else %}
+            OM Externa
+          {% endif %}
+        </div>
+      </div>
+      {% if c.devolvida %}
+        <span class="badge-mobile badge-azul">Devolvida</span>
+      {% elif c.devolucao_prevista and c.devolucao_prevista < hoje %}
+        <span class="badge-mobile badge-vermelho">Atrasada</span>
+      {% else %}
+        <span class="badge-mobile badge-amarelo">Ativa</span>
+      {% endif %}
+    </div>
+
+    <div class="card-mobile-row">
+      <span class="label">Data</span>
+      <span class="value">{{ c.data_cautela|data_br }}</span>
+    </div>
+    {% if c.devolucao_prevista %}
+    <div class="card-mobile-row">
+      <span class="label">Devolução prevista</span>
+      <span class="value">{{ c.devolucao_prevista|data_br }}</span>
+    </div>
+    {% endif %}
+    <div class="card-mobile-row">
+      <span class="label">Itens</span>
+      <span class="value">{{ c.itens|length }}</span>
+    </div>
+
+    <div style="margin-top:10px;">
+      <a href="{{ url_for('cautelas.detalhe', cautela_id=c.id) }}" class="btn-mobile btn-secondary" style="height:38px; font-size:13px;">
+        Ver detalhes
+      </a>
+    </div>
+  </div>
+  {% else %}
+  <div class="card-mobile" style="text-align:center; color:#9ca3af;">Nenhuma cautela encontrada.</div>
+  {% endfor %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+var input = document.getElementById('busca');
+if (input) {
+  input.addEventListener('input', function() {
+    var q = this.value.toLowerCase().trim();
+    document.querySelectorAll('.item-cautela').forEach(function(el) {
+      el.style.display = (!q || el.dataset.busca.includes(q)) ? '' : 'none';
+    });
+  });
+}
+</script>
+{% endblock %}

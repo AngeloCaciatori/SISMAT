@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cadastro de Assinatura — SISMAT</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f4f1e8;
+      min-height: 100vh;
+    }
+    .topbar {
+      background: #1e3a5f;
+      color: #fff;
+      padding: 14px 16px;
+      font-size: 16px;
+      font-weight: bold;
+      text-align: center;
+    }
+    .topbar .sub {
+      font-size: 12px;
+      font-weight: normal;
+      opacity: .8;
+      margin-top: 2px;
+    }
+    .card {
+      background: #fff;
+      margin: 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.1);
+      overflow: hidden;
+    }
+    .card-body { padding: 16px; }
+    .instrucao {
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    canvas {
+      width: 100%;
+      height: 220px;
+      display: block;
+      border: 2px solid #1e3a5f;
+      border-radius: 4px;
+      background: #fff;
+      cursor: crosshair;
+      touch-action: none;
+    }
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .btn {
+      flex: 1;
+      padding: 14px;
+      border: none;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-limpar { background: #e0e0e0; color: #333; }
+    .btn-confirmar { background: #1e3a5f; color: #fff; }
+    .btn-confirmar:disabled { background: #999; cursor: not-allowed; }
+
+    #overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.55);
+      align-items: center; justify-content: center;
+      flex-direction: column;
+      color: #fff; font-size: 18px; text-align: center;
+    }
+    #overlay.vis { display: flex; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 4px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #msg-ok {
+      display: none;
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      border-radius: 6px;
+      padding: 16px;
+      text-align: center;
+      font-size: 16px;
+      font-weight: bold;
+      margin: 16px;
+    }
+    #msg-erro {
+      display: none;
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      border-radius: 6px;
+      padding: 12px;
+      text-align: center;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  🖋 Cadastro de Assinatura
+  <div class="sub">
+    {% if operador.militar %}
+      {{ operador.militar.graduacao }} {{ operador.militar.nome_guerra }}
+    {% else %}
+      {{ operador.login }}
+    {% endif %}
+  </div>
+</div>
+
+<div id="form-area">
+  <div class="card">
+    <div class="card-body">
+      <p class="instrucao">
+        Assine no campo abaixo usando o dedo. Quando estiver satisfeito, toque em
+        <strong>Confirmar</strong>.
+      </p>
+      <canvas id="canvas"></canvas>
+      <div id="msg-erro"></div>
+      <div class="btn-row">
+        <button class="btn btn-limpar" onclick="limpar()">🗑 Limpar</button>
+        <button class="btn btn-confirmar" id="btn-conf" onclick="confirmar()">✅ Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="msg-ok">
+  ✅ Assinatura cadastrada com sucesso!<br>
+  <span style="font-size:13px; font-weight:normal; margin-top:4px; display:block;">
+    Pode fechar esta janela.
+  </span>
+</div>
+
+<div id="overlay">
+  <div class="spinner"></div>
+  Enviando…
+</div>
+
+<script>
+(function () {
+  var POST_URL = {{ url_for('assinatura.mobile_perfil', token=token) | tojson }};
+
+  /* ---- Canvas setup ---- */
+  var canvas  = document.getElementById('canvas');
+  var ctx     = canvas.getContext('2d');
+  var desenho = false;
+
+  function resize() {
+    var ratio = window.devicePixelRatio || 1;
+    var w = canvas.offsetWidth;
+    var h = canvas.offsetHeight;
+    canvas.width  = w * ratio;
+    canvas.height = h * ratio;
+    ctx.scale(ratio, ratio);
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth   = 3;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+  }
+  resize();
+  window.addEventListener('resize', function(){ resize(); vazio = true; });
+
+  var vazio = true;
+
+  function pos(e) {
+    var r = canvas.getBoundingClientRect();
+    var t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX - r.left, y: t.clientY - r.top };
+  }
+
+  canvas.addEventListener('mousedown',  function(e){ desenho=true; vazio=false; ctx.beginPath(); var p=pos(e); ctx.moveTo(p.x,p.y); e.preventDefault(); });
+  canvas.addEventListener('mousemove',  function(e){ if(!desenho) return; var p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); });
+  canvas.addEventListener('mouseup',    function(){ desenho=false; });
+  canvas.addEventListener('touchstart', function(e){ desenho=true; vazio=false; ctx.beginPath(); var p=pos(e); ctx.moveTo(p.x,p.y); e.preventDefault(); }, {passive:false});
+  canvas.addEventListener('touchmove',  function(e){ if(!desenho) return; var p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); }, {passive:false});
+  canvas.addEventListener('touchend',   function(){ desenho=false; });
+
+  window.limpar = function() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    vazio = true;
+    document.getElementById('msg-erro').style.display = 'none';
+  };
+
+  window.confirmar = function() {
+    if (vazio) {
+      mostrarErro('Faça sua assinatura antes de confirmar.');
+      return;
+    }
+    document.getElementById('btn-conf').disabled = true;
+    document.getElementById('overlay').classList.add('vis');
+
+    var imagem = canvas.toDataURL('image/png');
+    var fd = new FormData();
+    fd.append('assinatura', imagem);
+
+    fetch(POST_URL, { method: 'POST', body: fd })
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        document.getElementById('overlay').classList.remove('vis');
+        if (d.ok) {
+          document.getElementById('form-area').style.display = 'none';
+          document.getElementById('msg-ok').style.display   = 'block';
+        } else {
+          document.getElementById('btn-conf').disabled = false;
+          mostrarErro(d.erro || 'Erro ao enviar. Tente novamente.');
+        }
+      })
+      .catch(function() {
+        document.getElementById('overlay').classList.remove('vis');
+        document.getElementById('btn-conf').disabled = false;
+        mostrarErro('Falha na conexão. Verifique o Wi-Fi e tente novamente.');
+      });
+  };
+
+  function mostrarErro(msg) {
+    var el = document.getElementById('msg-erro');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+})();
+</script>
+
+</body>
+</html>

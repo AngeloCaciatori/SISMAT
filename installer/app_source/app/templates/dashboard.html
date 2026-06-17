@@ -99,9 +99,124 @@
     <h3>Operadores <span class="badge badge-admin" style="font-size:9px; vertical-align:middle;">Admin</span></h3>
     <p>Contas de acesso ao sistema · {{ total_operadores }} operador(es) cadastrado(s)</p>
   </a>
+
+  <a href="{{ url_for('operadores.backup_lista') }}" class="nav-card nav-card-verde">
+    <span class="icone">💾</span>
+    <h3>Backup <span class="badge badge-admin" style="font-size:9px; vertical-align:middle;">Admin</span></h3>
+    <p>
+      {% if ultimo_backup %}
+        Último backup: {{ ultimo_backup.criado_em.strftime('%d/%m/%Y %H:%M') }}
+        {% if ultimo_backup.copia_ok %} · ✓ Docs OK{% endif %}
+      {% else %}
+        Nenhum backup registrado ainda
+      {% endif %}
+    </p>
+  </a>
   {% endif %}
 
 </div>
+
+<!-- ── Gráficos de Fardamento ─────────────────────────────── -->
+{# Macro: gráfico de barras SVG puro — zero JS, 100% offline #}
+{% macro svg_bar(labels, data, color, width=280, height=150) %}
+{% if labels and data %}
+{% set max_v = data | max %}
+{% set n     = labels | length %}
+{% set gap   = (width / n) | round(0, 'floor') | int %}
+{% set bw    = (gap * 0.65) | round(0, 'floor') | int %}
+{% set area  = height - 28 %}
+<svg viewBox="0 0 {{ width }} {{ height }}" role="img"
+     style="width:100%; height:{{ height }}px; display:block; overflow:visible;">
+  {# linhas de grade horizontais #}
+  {% for t in [0.25, 0.5, 0.75, 1.0] %}
+  {% set gy = (area * (1 - t)) | round | int %}
+  <line x1="0" y1="{{ gy }}" x2="{{ width }}" y2="{{ gy }}"
+        stroke="rgba(0,0,0,0.07)" stroke-width="1"/>
+  {% endfor %}
+  {# barras #}
+  {% for i in range(n) %}
+  {% set bh = ((data[i] / max_v) * area) | round | int if max_v > 0 else 0 %}
+  {% set x  = (i * gap + (gap - bw) / 2) | round | int %}
+  {% set y  = area - bh %}
+  <rect x="{{ x }}" y="{{ y }}" width="{{ bw }}" height="{{ bh }}"
+        rx="3" fill="{{ color }}"/>
+  {# valor acima da barra #}
+  {% if bh >= 8 %}
+  <text x="{{ x + bw // 2 }}" y="{{ y - 3 }}"
+        text-anchor="middle" font-size="9" fill="#5a5a52">{{ data[i] }}</text>
+  {% endif %}
+  {# label do eixo X #}
+  <text x="{{ x + bw // 2 }}" y="{{ height - 5 }}"
+        text-anchor="middle" font-size="10" fill="#888780">{{ labels[i] }}</text>
+  {% endfor %}
+</svg>
+{% endif %}
+{% endmacro %}
+
+{% set gf = graf_fardamento %}
+{% if gf.total_rows > 0 %}
+<h2 style="font-size:16px; font-weight:700; color:var(--verde-escuro); margin:28px 0 6px;">
+  Distribuição de Fardamento
+</h2>
+<div style="font-size:12px; color:var(--texto-claro); margin-bottom:14px;">
+  {{ gf.com_medidas }} militar(es) com medidas cadastradas
+  {% if gf.total_rows > gf.com_medidas %}
+    · <span style="color:var(--amarelo);">{{ gf.total_rows - gf.com_medidas }} sem medidas válidas</span>
+  {% endif %}
+</div>
+
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:14px; margin-bottom:28px;">
+
+  {% if gf.calcado.labels %}
+  <div class="panel" style="padding:14px 16px;">
+    <div style="font-size:13px; font-weight:700; color:var(--verde-escuro); margin-bottom:2px;">Calçado</div>
+    <div style="font-size:11px; color:var(--texto-claro); margin-bottom:10px;">Coturno · Tênis TFM</div>
+    {{ svg_bar(gf.calcado.labels, gf.calcado.data, '#378ADD') }}
+    <div style="margin-top:6px; font-size:11px; color:var(--texto-claro);">
+      Maior demanda: <strong>nº {{ gf.calcado.labels[gf.calcado.data.index(gf.calcado.data|max)] }}</strong>
+      ({{ gf.calcado.data|max }} militares)
+    </div>
+  </div>
+  {% endif %}
+
+  {% if gf.camisa.labels %}
+  <div class="panel" style="padding:14px 16px;">
+    <div style="font-size:13px; font-weight:700; color:var(--verde-escuro); margin-bottom:2px;">Camisas</div>
+    <div style="font-size:11px; color:var(--texto-claro); margin-bottom:10px;">Gandola · Camisa · Regata Branca</div>
+    {{ svg_bar(gf.camisa.labels, gf.camisa.data, '#1D9E75') }}
+    <div style="margin-top:6px; font-size:11px; color:var(--texto-claro);">
+      Maior demanda: <strong>{{ gf.camisa.labels[gf.camisa.data.index(gf.camisa.data|max)] }}</strong>
+      ({{ gf.camisa.data|max }} militares)
+    </div>
+  </div>
+  {% endif %}
+
+  {% if gf.calca.labels %}
+  <div class="panel" style="padding:14px 16px;">
+    <div style="font-size:13px; font-weight:700; color:var(--verde-escuro); margin-bottom:2px;">Calças</div>
+    <div style="font-size:11px; color:var(--texto-claro); margin-bottom:10px;">Calça · Shorts TFM</div>
+    {{ svg_bar(gf.calca.labels, gf.calca.data, '#7F77DD') }}
+    <div style="margin-top:6px; font-size:11px; color:var(--texto-claro);">
+      Maior demanda: <strong>{{ gf.calca.labels[gf.calca.data.index(gf.calca.data|max)] }}</strong>
+      ({{ gf.calca.data|max }} militares)
+    </div>
+  </div>
+  {% endif %}
+
+  {% if gf.cabeca.labels %}
+  <div class="panel" style="padding:14px 16px;">
+    <div style="font-size:13px; font-weight:700; color:var(--verde-escuro); margin-bottom:2px;">Cabeça</div>
+    <div style="font-size:11px; color:var(--texto-claro); margin-bottom:10px;">Boina · Gorro</div>
+    {{ svg_bar(gf.cabeca.labels, gf.cabeca.data, '#BA7517') }}
+    <div style="margin-top:6px; font-size:11px; color:var(--texto-claro);">
+      Maior demanda: <strong>{{ gf.cabeca.labels[gf.cabeca.data.index(gf.cabeca.data|max)] }}</strong>
+      ({{ gf.cabeca.data|max }} militares)
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endif %}
 
 <script>
   var h = new Date().getHours();

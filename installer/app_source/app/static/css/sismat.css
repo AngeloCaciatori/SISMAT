@@ -481,3 +481,28 @@ tbody tr:hover { background: rgba(30,58,95,0.04); }
   .stats-row   { grid-template-columns: 1fr 1fr; }
   .dashboard-grid { grid-template-columns: 1fr; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   TABELAS RESPONSIVAS — rola horizontalmente em mobile
+   Envolve qualquer <table> dentro de .panel com scroll
+═══════════════════════════════════════════════════════════ */
+.panel { overflow-x: auto; }
+
+/* Garante que tabelas dentro de .panel não quebrem o layout */
+.panel table {
+  min-width: 480px;   /* largura mínima antes de ativar o scroll */
+  width: 100%;
+}
+
+/* Exceção: painéis que são apenas cards de texto/formulário
+   não precisam de min-width nas tabelas internas */
+.panel .dados-table,
+.panel .dados-table th,
+.panel .dados-table td {
+  min-width: unset;
+}
+
+/* Formulários dentro de .panel não devem ter scroll horizontal */
+.panel form table {
+  min-width: unset;
+}

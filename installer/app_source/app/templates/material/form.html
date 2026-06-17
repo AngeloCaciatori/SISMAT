@@ -100,9 +100,10 @@
 </div>
 
 {% if material %}
-<div class="info-box" style="margin-top:16px;">
-  <strong>Cód. {{ material.id }}</strong> · cadastrado em {{ material.criado_em | data_br }}
-  · última edição em {{ material.atualizado_em | data_br }}
+<div class="info-box" style="margin-top:16px; font-size:12px;">
+  <strong>Cód. {{ material.id }}</strong>
+  · cadastrado em {{ material.criado_em | data_br }}{% if log_criado %} por <strong>{{ log_criado }}</strong>{% endif %}
+  · última edição em {{ material.atualizado_em | data_br }}{% if log_editado %} por <strong>{{ log_editado }}</strong>{% endif %}
   {% if material.quantidade_cautelada > 0 %}
   · <strong>{{ material.quantidade_cautelada }}</strong> unidade(s) cauteladas
   {% endif %}

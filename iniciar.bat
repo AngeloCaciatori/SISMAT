@@ -24,5 +24,8 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM Abre o navegador depois de 4s (tempo do Flask subir)
+start "" /min cmd /c "timeout /t 4 /nobreak >nul & start http://localhost:5000"
+
 python run.py
 pause

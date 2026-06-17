@@ -10,7 +10,25 @@ from decimal import Decimal, InvalidOperation
 
 from ..extensions import db
 from ..auth import admin_required
-from ..models import Material, ItemCautelado, Cautela, TIPOS_MATERIAL, ESTADOS_CONSERVACAO
+from ..models import Material, ItemCautelado, Cautela, LogAuditoria, TIPOS_MATERIAL, ESTADOS_CONSERVACAO
+from ..utils import registrar_log
+
+
+def _log_operadores_mat(mat_id: int):
+    criado = (
+        LogAuditoria.query
+        .filter_by(acao="CADASTRO_MATERIAL", referencia_id=mat_id)
+        .order_by(LogAuditoria.id.asc()).first()
+    )
+    editado = (
+        LogAuditoria.query
+        .filter_by(acao="EDICAO_MATERIAL", referencia_id=mat_id)
+        .order_by(LogAuditoria.id.desc()).first()
+    )
+    return (
+        criado.operador_label if criado else None,
+        editado.operador_label if editado else None,
+    )
 
 bp = Blueprint("material", __name__)
 
@@ -297,6 +315,7 @@ def novo():
         "material/form.html", modo="novo", material=None,
         TIPOS=TIPOS_MATERIAL, ESTADOS=ESTADOS_CONSERVACAO,
         tipos_existentes=tipos_disp, deps_existentes=deps_disp,
+        log_criado=None, log_editado=None,
     )
 
 
@@ -307,10 +326,12 @@ def editar(mat_id):
     if request.method == "POST":
         return _salvar(material=material)
     tipos_disp, deps_disp = _valores_distintos()
+    log_criado, log_editado = _log_operadores_mat(mat_id)
     return render_template(
         "material/form.html", modo="editar", material=material,
         TIPOS=TIPOS_MATERIAL, ESTADOS=ESTADOS_CONSERVACAO,
         tipos_existentes=tipos_disp, deps_existentes=deps_disp,
+        log_criado=log_criado, log_editado=log_editado,
     )
 
 
@@ -344,6 +365,8 @@ def _salvar(material):
     material.obs = (request.form.get("obs") or "").strip() or None
 
     db.session.commit()
+    acao = "CADASTRO_MATERIAL" if novo_flag else "EDICAO_MATERIAL"
+    registrar_log(acao, f"'{nomenclatura}' ({material.tipo})", referencia_id=material.id)
     flash(
         f"Material '{nomenclatura}' {'cadastrado' if novo_flag else 'atualizado'}.",
         "success",
@@ -372,5 +395,6 @@ def remover(mat_id):
 
     material.ativo = False
     db.session.commit()
+    registrar_log("REMOCAO_MATERIAL", f"'{material.nomenclatura}'", referencia_id=material.id)
     flash(f"Material '{material.nomenclatura}' desativado.", "success")
     return redirect(url_for("material.lista"))

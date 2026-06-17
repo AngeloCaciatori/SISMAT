@@ -1,0 +1,99 @@
+{% extends "mobile/base_mobile.html" %}
+
+{% block title %}Cautela {{ cautela.numero }}{% endblock %}
+{% block page_title %}{{ cautela.numero }}{% endblock %}
+{% block back_url %}{{ url_for('cautelas.lista') }}{% endblock %}
+
+{% block content %}
+<div style="padding: 12px;">
+
+  {# Status + cabeçalho #}
+  <div class="card-mobile">
+    <div class="card-mobile-header">
+      <div>
+        <div class="card-mobile-title">{{ cautela.numero }}</div>
+        <div class="card-mobile-sub">{{ cautela.data_cautela|data_br }}</div>
+      </div>
+      {% if cautela.devolvida %}
+        <span class="badge-mobile badge-azul">Devolvida</span>
+      {% elif cautela.devolucao_prevista and cautela.devolucao_prevista < hoje %}
+        <span class="badge-mobile badge-vermelho">Atrasada</span>
+      {% else %}
+        <span class="badge-mobile badge-amarelo">Ativa</span>
+      {% endif %}
+    </div>
+
+    <div class="card-mobile-row">
+      <span class="label">Recebedor</span>
+      <span class="value">
+        {% if cautela.militar %}
+          {{ cautela.militar.graduacao }} {{ cautela.militar.nome_guerra }}
+        {% else %}
+          {{ cautela.recebedor_grad or '' }} {{ cautela.recebedor_nome_guerra or 'OM Externa' }}
+        {% endif %}
+      </span>
+    </div>
+    {% if cautela.om_externa_nome %}
+    <div class="card-mobile-row">
+      <span class="label">OM</span>
+      <span class="value">{{ cautela.om_externa_nome }}</span>
+    </div>
+    {% endif %}
+    {% if cautela.devolucao_prevista %}
+    <div class="card-mobile-row">
+      <span class="label">Dev. prevista</span>
+      <span class="value">{{ cautela.devolucao_prevista|data_br }}</span>
+    </div>
+    {% endif %}
+    {% if cautela.finalidade %}
+    <div class="card-mobile-row">
+      <span class="label">Finalidade</span>
+      <span class="value">{{ cautela.finalidade }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  {# Itens #}
+  <div class="accordion-mobile">
+    <button class="accordion-header open">
+      &#128230; Itens ({{ cautela.itens|length }})
+      <span class="accordion-arrow">&#8964;</span>
+    </button>
+    <div class="accordion-body open">
+      {% for item in cautela.itens %}
+      <div class="card-mobile-row" style="flex-direction:column; align-items:flex-start; gap:2px; padding: 8px 0;">
+        <span class="value">{{ item.material.nome }}</span>
+        <span class="label">Qtd: {{ item.quantidade }}
+          {% if item.obs %} · {{ item.obs }}{% endif %}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# Ações #}
+  <div style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">
+
+    {% if not cautela.devolvida %}
+    <form method="POST" action="{{ url_for('cautelas.devolver', cautela_id=cautela.id) }}"
+          onsubmit="return confirm('Confirmar devolução da cautela {{ cautela.numero }}?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn-mobile btn-success">
+        &#9989; Registrar Devolução
+      </button>
+    </form>
+    {% endif %}
+
+    <a href="{{ url_for('cautelas.imprimir', cautela_id=cautela.id) }}" target="_blank"
+       class="btn-mobile btn-secondary">
+      &#128196; Ver FIDU (desktop)
+    </a>
+
+    <a href="{{ url_for('cautelas.lista') }}" class="btn-mobile btn-secondary">
+      &#8592; Voltar
+    </a>
+
+  </div>
+
+</div>
+{% endblock %}

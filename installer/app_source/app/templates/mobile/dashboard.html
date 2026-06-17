@@ -1,0 +1,80 @@
+{% extends "mobile/base_mobile.html" %}
+
+{% block title %}Painel{% endblock %}
+{% block page_title %}Painel{% endblock %}
+{% block back_url %}{{ url_for('main.dashboard') }}{% endblock %}
+
+{% block content %}
+<div class="stats-mobile">
+
+  <a href="{{ url_for('efetivo.lista') }}" style="text-decoration:none;">
+    <div class="stat-card-mobile">
+      <span class="stat-icon-mobile">&#128101;</span>
+      <div class="stat-info-mobile">
+        <div class="stat-value">{{ total_militares }}</div>
+        <div class="stat-label">Militares no efetivo</div>
+      </div>
+    </div>
+  </a>
+
+  <a href="{{ url_for('material.lista') }}" style="text-decoration:none;">
+    <div class="stat-card-mobile">
+      <span class="stat-icon-mobile">&#128230;</span>
+      <div class="stat-info-mobile">
+        <div class="stat-value">{{ total_itens }}</div>
+        <div class="stat-label">Itens em carga &middot; {{ total_unidades }} unidades</div>
+      </div>
+    </div>
+  </a>
+
+  <a href="{{ url_for('cautelas.lista') }}" style="text-decoration:none;">
+    <div class="stat-card-mobile {% if cautelas_atrasadas > 0 %}danger{% endif %}">
+      <span class="stat-icon-mobile">&#128203;</span>
+      <div class="stat-info-mobile">
+        <div class="stat-value">{{ cautelas_ativas }}</div>
+        <div class="stat-label">
+          Cautelas ativas
+          {% if cautelas_atrasadas > 0 %}
+            &middot; <span style="color:var(--danger);">{{ cautelas_atrasadas }} atrasada{{ 's' if cautelas_atrasadas != 1 }}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </a>
+
+  {% if racao_vencendo > 0 %}
+  <div class="stat-card-mobile warning">
+    <span class="stat-icon-mobile">&#127860;</span>
+    <div class="stat-info-mobile">
+      <div class="stat-value">{{ racao_vencendo }}</div>
+      <div class="stat-label">Ração vencendo em 30 dias</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="stat-card-mobile success">
+    <span class="stat-icon-mobile">&#128272;</span>
+    <div class="stat-info-mobile">
+      <div class="stat-value">{{ total_operadores }}</div>
+      <div class="stat-label">Operadores ativos</div>
+    </div>
+  </div>
+
+  {% if current_user.is_admin %}
+  <a href="{{ url_for('operadores.backup_lista') }}" style="text-decoration:none;">
+    <div class="stat-card-mobile {% if not ultimo_backup %}warning{% endif %}">
+      <span class="stat-icon-mobile">&#128190;</span>
+      <div class="stat-info-mobile">
+        <div class="stat-value" style="font-size:14px;">
+          {% if ultimo_backup %}{{ ultimo_backup.criado_em.strftime('%d/%m') }}{% else %}—{% endif %}
+        </div>
+        <div class="stat-label">Último backup
+          {% if ultimo_backup and ultimo_backup.copia_ok %}&middot; &#10003; Docs OK{% endif %}
+        </div>
+      </div>
+    </div>
+  </a>
+  {% endif %}
+
+</div>
+{% endblock %}

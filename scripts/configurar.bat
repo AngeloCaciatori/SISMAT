@@ -5,10 +5,14 @@
 ::  ATENCAO: sem 'pause' - projetado para rodar pelo instalador
 :: ============================================================
 cd /d "%~dp0.."
-set "APP=%~dp0.."
-set "LOG=%APP%configurar.log"
-set "VENV=%APP%.venv"
-set "WHEELS=%APP%wheels"
+set "APP=%CD%"
+set "LOG=%APP%\configurar.log"
+set "VENV=%APP%\.venv"
+set "WHEELS=%APP%\wheels"
+
+:: Força Python a usar UTF-8 no stdout/stderr (resolve UnicodeEncodeError no console Windows CP1252)
+set PYTHONIOENCODING=utf-8
+set PYTHONUTF8=1
 
 echo [%DATE% %TIME%] Iniciando configuracao... > "%LOG%"
 echo Diretorio: %APP% >> "%LOG%"
@@ -70,10 +74,10 @@ for %%f in ("%WHEELS%\*.whl") do set HAS_WHEELS=1
 
 if "%HAS_WHEELS%"=="1" (
   echo   Usando wheels offline. >> "%LOG%"
-  "%VENV%\Scripts\python.exe" -m pip install --no-index --find-links="%WHEELS%" -r "%APP%requirements.txt" >> "%LOG%" 2>&1
+  "%VENV%\Scripts\python.exe" -m pip install --no-index --find-links="%WHEELS%" -r "%APP%\requirements.txt" >> "%LOG%" 2>&1
 ) else (
   echo   Wheels nao encontrados, instalando com internet. >> "%LOG%"
-  "%VENV%\Scripts\python.exe" -m pip install -r "%APP%requirements.txt" >> "%LOG%" 2>&1
+  "%VENV%\Scripts\python.exe" -m pip install -r "%APP%\requirements.txt" >> "%LOG%" 2>&1
 )
 
 if errorlevel 1 (
@@ -85,23 +89,28 @@ echo   Dependencias instaladas. >> "%LOG%"
 :: ---- Inicializar banco ----
 echo [%DATE% %TIME%] Inicializando banco de dados... >> "%LOG%"
 echo Inicializando banco de dados...
-"%VENV%\Scripts\python.exe" "%APP%scripts\init_db.py" >> "%LOG%" 2>&1
+"%VENV%\Scripts\python.exe" "%APP%\scripts\init_db.py" >> "%LOG%" 2>&1
 
 :: ---- Migracoes ----
 echo [%DATE% %TIME%] Aplicando migracoes... >> "%LOG%"
 echo Aplicando migracoes...
-"%VENV%\Scripts\python.exe" "%APP%scripts\migrar_v2.py" >> "%LOG%" 2>&1
-"%VENV%\Scripts\python.exe" "%APP%scripts\migrar_v3.py" >> "%LOG%" 2>&1
-"%VENV%\Scripts\python.exe" "%APP%scripts\migrar_v4.py" >> "%LOG%" 2>&1
-"%VENV%\Scripts\python.exe" "%APP%scripts\migrar_v5.py" >> "%LOG%" 2>&1
+"%VENV%\Scripts\python.exe" "%APP%\scripts\migrar_v2.py" >> "%LOG%" 2>&1
+"%VENV%\Scripts\python.exe" "%APP%\scripts\migrar_v3.py" >> "%LOG%" 2>&1
+"%VENV%\Scripts\python.exe" "%APP%\scripts\migrar_v4.py" >> "%LOG%" 2>&1
+"%VENV%\Scripts\python.exe" "%APP%\scripts\migrar_v5.py" >> "%LOG%" 2>&1
+
+:: ---- Garantir admin funcional (defensivo: se init_db falhou ou hash quebrou) ----
+echo [%DATE% %TIME%] Garantindo admin funcional... >> "%LOG%"
+echo Garantindo admin funcional...
+"%VENV%\Scripts\python.exe" "%APP%\scripts\resetar_admin.py" >> "%LOG%" 2>&1
 
 :: ---- Agendador de backup ----
 echo [%DATE% %TIME%] Configurando tarefas de backup... >> "%LOG%"
 echo Configurando agendador de backup...
-schtasks /Create /TN "SISMAT Backup Diario"  /SC DAILY   /ST 15:00 /TR "\"%VENV%\Scripts\python.exe\" \"%APP%scripts\backup_db.py\" --tipo diario"  /F >> "%LOG%" 2>&1
-schtasks /Create /TN "SISMAT Backup Semanal" /SC WEEKLY  /D MON /ST 15:30 /TR "\"%VENV%\Scripts\python.exe\" \"%APP%scripts\backup_db.py\" --tipo semanal" /F >> "%LOG%" 2>&1
-schtasks /Create /TN "SISMAT Backup Mensal"  /SC MONTHLY /D 1   /ST 15:45 /TR "\"%VENV%\Scripts\python.exe\" \"%APP%scripts\backup_db.py\" --tipo mensal"  /F >> "%LOG%" 2>&1
-schtasks /Create /TN "SISMAT Backup Anual"   /SC MONTHLY /D 1 /MO 12 /ST 15:45 /TR "\"%VENV%\Scripts\python.exe\" \"%APP%scripts\backup_db.py\" --tipo anual"   /F >> "%LOG%" 2>&1
+schtasks /Create /TN "SISMAT Backup Diario"  /SC DAILY   /ST 15:00 /TR "\"%VENV%\Scripts\python.exe\" \"%APP%\scripts\backup_db.py\" --tipo diario"  /F >> "%LOG%" 2>&1
+schtasks /Create /TN "SISMAT Backup Semanal" /SC WEEKLY  /D MON /ST 15:30 /TR "\"%VENV%\Scripts\python.exe\" \"%APP%\scripts\backup_db.py\" --tipo semanal" /F >> "%LOG%" 2>&1
+schtasks /Create /TN "SISMAT Backup Mensal"  /SC MONTHLY /D 1   /ST 15:45 /TR "\"%VENV%\Scripts\python.exe\" \"%APP%\scripts\backup_db.py\" --tipo mensal"  /F >> "%LOG%" 2>&1
+schtasks /Create /TN "SISMAT Backup Anual"   /SC MONTHLY /D 1 /MO 12 /ST 15:45 /TR "\"%VENV%\Scripts\python.exe\" \"%APP%\scripts\backup_db.py\" --tipo anual"   /F >> "%LOG%" 2>&1
 echo   Tarefas de backup configuradas. >> "%LOG%"
 
 :: ---- Fim ----

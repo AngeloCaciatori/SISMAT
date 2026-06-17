@@ -43,6 +43,10 @@ class Operador(db.Model, UserMixin):
     militar_id = db.Column(db.Integer, db.ForeignKey("militar.id"), nullable=True)
     militar = db.relationship("Militar", foreign_keys=[militar_id])
 
+    # Assinatura digital — base64 da imagem PNG capturada no canvas mobile
+    assinatura_base64 = db.Column(db.Text, nullable=True)
+    assinatura_cadastrada_em = db.Column(db.DateTime, nullable=True)
+
     # ----- senha -----
     def definir_senha(self, senha_clara: str) -> None:
         """Hashea a senha com bcrypt e armazena."""
@@ -70,10 +74,21 @@ class Operador(db.Model, UserMixin):
 #  MILITAR — efetivo (recebe cautelas)
 # ===================================================================
 
+SITUACAO_ATIVO = "ATIVO"
+SITUACAO_EXCLUIDO = "EXCLUIDO"
+SITUACAO_TRANSFERIDO = "TRANSFERIDO"
+SITUACAO_LICENCA = "LICENCA"
+
+
 class Militar(db.Model):
     __tablename__ = "militar"
 
     id = db.Column(db.Integer, primary_key=True)
+    # Situação (substitui lógica de excluido + PRAZO_EXCLUSAO_DIAS)
+    situacao = db.Column(db.String(20), default=SITUACAO_ATIVO, nullable=False, index=True)
+    situacao_em = db.Column(db.DateTime, nullable=True)
+    situacao_motivo = db.Column(db.String(200), nullable=True)
+    # Campos legados — mantidos para backward compat (não dropar)
     excluido = db.Column(db.Boolean, default=False, nullable=False, index=True)
     excluido_em = db.Column(db.DateTime, nullable=True)
     graduacao = db.Column(db.String(50), nullable=True)
@@ -98,6 +113,10 @@ class Militar(db.Model):
     )
     cautelas = db.relationship("Cautela", back_populates="militar")
 
+    @property
+    def is_ativo(self) -> bool:
+        return self.situacao == SITUACAO_ATIVO
+
     def __repr__(self) -> str:
         return f"<Militar {self.graduacao} {self.nome_guerra}>"
 
@@ -113,12 +132,14 @@ class Medidas(db.Model):
     militar_id = db.Column(
         db.Integer, db.ForeignKey("militar.id"), unique=True, nullable=False
     )
-    ombro = db.Column(db.String(20), nullable=True)
-    cintura = db.Column(db.String(20), nullable=True)
-    quadril = db.Column(db.String(20), nullable=True)
-    cabeca = db.Column(db.String(20), nullable=True)
-    pe = db.Column(db.String(20), nullable=True)
-    braco = db.Column(db.String(20), nullable=True)
+    # Tamanhos de roupa (PP / P / M / G / GG / XG)
+    camisa = db.Column(db.String(5),  nullable=True)   # Camisa, Gandola, Regata, Camiseta
+    calca  = db.Column(db.String(5),  nullable=True)   # Calça, Shorts TFM
+    # Medidas brutas mantidas
+    cabeca = db.Column(db.String(20), nullable=True)   # Circunferência cm (boina, gorro)
+    pe     = db.Column(db.String(20), nullable=True)   # Número do calçado (coturno, tênis)
+    # Colunas legadas (v1-v4) — permanecem no banco, não são mais usadas pelo app
+    # ombro, cintura, quadril, braco
     atualizado_em = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
@@ -293,6 +314,37 @@ class ModeloDocumento(db.Model):
 
 
 # ===================================================================
+#  LOG DE AUDITORIA — registro de ações dos operadores
+# ===================================================================
+
+class LogAuditoria(db.Model):
+    __tablename__ = "log_auditoria"
+
+    id = db.Column(db.Integer, primary_key=True)
+    operador_id = db.Column(db.Integer, db.ForeignKey("operador.id"), nullable=True)
+    acao = db.Column(db.String(60), nullable=False, index=True)
+    descricao = db.Column(db.Text, nullable=False)
+    referencia_id = db.Column(db.Integer, nullable=True)  # ID do objeto afetado
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    operador = db.relationship("Operador", foreign_keys=[operador_id])
+
+    @property
+    def operador_label(self) -> str:
+        """Retorna 'Grad NomeGuerra' se operador tem militar vinculado, senão login."""
+        if not self.operador:
+            return "Sistema"
+        op = self.operador
+        if op.militar:
+            grad = op.militar.graduacao or ""
+            nome = op.militar.nome_guerra or ""
+            label = f"{grad} {nome}".strip()
+            if label:
+                return label
+        return op.login
+
+
+# ===================================================================
 #  SOLICITAÇÃO DE RESET DE SENHA (registrada para o admin atender)
 # ===================================================================
 
@@ -307,3 +359,81 @@ class SolicitacaoReset(db.Model):
     atendida_em = db.Column(db.DateTime, nullable=True)
     atendida_por_id = db.Column(db.Integer, db.ForeignKey("operador.id"), nullable=True)
     solicitada_em = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+# ===================================================================
+#  TOKEN DE ASSINATURA — one-time token para autorizar assinatura
+# ===================================================================
+
+class TokenAssinatura(db.Model):
+    __tablename__ = "token_assinatura"
+
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(36), unique=True, nullable=False, index=True)
+    tipo = db.Column(db.String(40), nullable=False)
+    # tipos: "cadastro_operador" | "cautela_recebimento" | "cautela_devolucao" | "documento_recebedor"
+    operador_id = db.Column(db.Integer, db.ForeignKey("operador.id"), nullable=True)
+    cautela_id = db.Column(db.Integer, db.ForeignKey("cautela.id"), nullable=True)
+    documento_id = db.Column(db.Integer, nullable=True)
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    expira_em = db.Column(db.DateTime, nullable=False)
+    usado = db.Column(db.Boolean, default=False)
+    usado_em = db.Column(db.DateTime, nullable=True)
+    ip_origem = db.Column(db.String(45), nullable=True)
+    ip_uso = db.Column(db.String(45), nullable=True)
+
+    operador = db.relationship("Operador", foreign_keys=[operador_id])
+    cautela = db.relationship("Cautela", foreign_keys=[cautela_id])
+
+
+# ===================================================================
+#  ASSINATURA APLICADA — registro de cada assinatura coletada
+# ===================================================================
+
+class AssinaturaAplicada(db.Model):
+    __tablename__ = "assinatura_aplicada"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tipo_documento = db.Column(db.String(40), nullable=False)
+    # tipos: "cautela_recebimento" | "cautela_devolucao" | "documento"
+    cautela_id = db.Column(db.Integer, db.ForeignKey("cautela.id"), nullable=True)
+    documento_id = db.Column(db.Integer, nullable=True)
+    papel = db.Column(db.String(20), nullable=False)  # "operador" | "recebedor"
+    operador_id = db.Column(db.Integer, db.ForeignKey("operador.id"), nullable=True)
+    militar_id = db.Column(db.Integer, db.ForeignKey("militar.id"), nullable=True)
+    recebedor_externo_nome = db.Column(db.String(200), nullable=True)
+    recebedor_externo_cpf = db.Column(db.String(20), nullable=True)
+    imagem_base64 = db.Column(db.Text, nullable=False)
+    assinado_em = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    ip_origem = db.Column(db.String(45), nullable=False)
+    token_id = db.Column(db.Integer, db.ForeignKey("token_assinatura.id"), nullable=True)
+
+    operador_rel = db.relationship("Operador", foreign_keys=[operador_id])
+    militar_rel = db.relationship("Militar", foreign_keys=[militar_id])
+    cautela_rel = db.relationship("Cautela", foreign_keys=[cautela_id])
+    token_rel = db.relationship("TokenAssinatura", foreign_keys=[token_id])
+
+
+# ===================================================================
+#  BACKUP LOG — registro de cada backup executado
+# ===================================================================
+
+class BackupLog(db.Model):
+    __tablename__ = "backup_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    arquivo = db.Column(db.String(200), nullable=False)
+    tipo = db.Column(db.String(20), nullable=False)          # diario|semanal|mensal|anual
+    tamanho_kb = db.Column(db.Float, nullable=True)
+    md5_db = db.Column(db.String(32), nullable=True)
+    ok = db.Column(db.Boolean, default=True, nullable=False)
+    erro_msg = db.Column(db.Text, nullable=True)
+    destino_docs = db.Column(db.String(300), nullable=True, name="destino_cloud")  # cópia em Documentos\SISMAT
+    copia_ok = db.Column(db.Boolean, nullable=True, name="cloud_ok")
+    copia_erro = db.Column(db.Text, nullable=True, name="cloud_erro")
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    def __repr__(self) -> str:
+        return f"<BackupLog {self.arquivo} ok={self.ok}>"
+
+

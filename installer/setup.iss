@@ -60,7 +60,7 @@ Name: "importlegado"; Description: "Importar dados legados (CSVs do sistema ante
 Name: "desktopicon";   Description: "Criar atalho na Área de Trabalho";    GroupDescription: "Atalhos:"; Flags: checkedonce
 Name: "startmenu";     Description: "Criar atalho no Menu Iniciar";         GroupDescription: "Atalhos:"; Flags: checkedonce
 Name: "firewall";      Description: "Liberar porta 5000 no Firewall Windows (acesso pela rede local)"; GroupDescription: "Rede:"; Flags: checkedonce
-Name: "backupmensal";  Description: "Agendar backup automático mensal (dia 1 às 03:00)"; GroupDescription: "Manutenção:"; Flags: unchecked
+; (Os backups diário/semanal/mensal/anual às 15h são agendados automaticamente pelo configurar.bat)
 
 ; =============================================================================
 ;  ARQUIVOS
@@ -70,10 +70,10 @@ Name: "backupmensal";  Description: "Agendar backup automático mensal (dia 1 à
 Source: "app_source\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: base
 
 ; Instalador do Python (copiado para temp, apagado apos instalar)
-; So incluido se o arquivo existir na pasta python_installer\
+; Sempre embutir o instalador do Python no Setup.exe.
+; A decisão de RODAR o instalador é feita no [Run] via DeveInstalarPython.
 Source: "python_installer\python-3.12.7-amd64.exe"; DestDir: "{tmp}"; \
-  Flags: ignoreversion deleteafterinstall; Components: base; \
-  Check: PythonInstallerDisponivel
+  Flags: ignoreversion deleteafterinstall; Components: base
 
 ; Pacotes Python offline
 Source: "wheels\*"; DestDir: "{app}\wheels"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: base
@@ -125,11 +125,7 @@ Filename: "{cmd}"; \
   StatusMsg: "Liberando porta 5000 no firewall..."; \
   Flags: runhidden waituntilterminated; Tasks: firewall
 
-; Tarefa agendada de backup mensal (se selecionada)
-Filename: "{cmd}"; \
-  Parameters: "/c schtasks /Create /F /TN ""SISMAT Backup Mensal"" /SC MONTHLY /D 1 /ST 03:00 /TR ""{app}\scripts\backup_mensal.bat"""; \
-  StatusMsg: "Agendando backup mensal automatico..."; \
-  Flags: runhidden waituntilterminated; Tasks: backupmensal
+; (Os backups são agendados pelo configurar.bat — não duplicar aqui)
 
 ; Abrir o SISMAT ao final (opcional)
 Filename: "{app}\iniciar.bat"; Description: "Iniciar o SISMAT agora"; \
@@ -185,16 +181,11 @@ begin
     'SOFTWARE\Python\PythonCore\3.11\InstallPath', '');
 end;
 
-// ─── O arquivo instalador do Python esta na pasta python_installer? ───────────
-function PythonInstallerDisponivel: Boolean;
-begin
-  Result := FileExists(ExpandConstant('{src}\python_installer\python-3.12.7-amd64.exe'));
-end;
-
-// ─── Deve instalar Python? (tem o arquivo E Python nao esta no sistema) ────────
+// ─── Deve instalar Python? (sempre, exceto se ja estiver instalado) ────────────
+// O instalador do Python esta embutido no Setup.exe e copiado para {tmp}.
 function DeveInstalarPython: Boolean;
 begin
-  Result := PythonInstallerDisponivel and not PythonEstaInstalado;
+  Result := not PythonEstaInstalado;
 end;
 
 // ─── Desinstalação: perguntar sobre banco de dados ────────────────────────────

@@ -1,0 +1,55 @@
+{% extends "mobile/base_mobile.html" %}
+
+{% block title %}Mais{% endblock %}
+{% block page_title %}Mais opções{% endblock %}
+{% block back_url %}{{ url_for('main.dashboard') }}{% endblock %}
+
+{% block content %}
+<div class="mais-menu">
+
+  <div class="secao-mobile">Sistema</div>
+
+  <a href="{{ url_for('documentacao.lista') }}" class="mais-item">
+    <span class="mais-icon">&#128196;</span>
+    Documentação
+  </a>
+
+  {% if current_user.is_admin %}
+  <a href="{{ url_for('operadores.lista') }}" class="mais-item">
+    <span class="mais-icon">&#128272;</span>
+    Operadores
+  </a>
+  <a href="{{ url_for('operadores.backup_lista') }}" class="mais-item">
+    <span class="mais-icon">&#128190;</span>
+    Backup
+  </a>
+  {% endif %}
+
+  <div class="secao-mobile">Conta</div>
+
+  <a href="{{ url_for('auth.trocar_senha') }}" class="mais-item">
+    <span class="mais-icon">&#128273;</span>
+    Trocar Senha
+  </a>
+
+  <div class="secao-mobile">Visualização</div>
+
+  <a href="{{ url_for('main.alternar_view') }}" class="mais-item">
+    {% if is_mobile %}
+      <span class="mais-icon">&#128187;</span>
+      Trocar para versão Desktop
+    {% else %}
+      <span class="mais-icon">&#128241;</span>
+      Voltar para versão Mobile
+    {% endif %}
+  </a>
+
+  <div class="secao-mobile">Sessão</div>
+
+  <a href="{{ url_for('auth.logout') }}" class="mais-item danger">
+    <span class="mais-icon">&#128682;</span>
+    Sair do Sistema
+  </a>
+
+</div>
+{% endblock %}

@@ -8,6 +8,7 @@ from .cautelas import bp as cautelas_bp
 from .documentacao import bp as documentacao_bp
 from .racao import bp as racao_bp
 from .operadores import bp as operadores_bp
+from .assinatura import bp as assinatura_bp
 
 
 def register_blueprints(app):
@@ -19,3 +20,4 @@ def register_blueprints(app):
     app.register_blueprint(documentacao_bp, url_prefix="/documentacao")
     app.register_blueprint(racao_bp, url_prefix="/racao")
     app.register_blueprint(operadores_bp, url_prefix="/operadores")
+    app.register_blueprint(assinatura_bp)

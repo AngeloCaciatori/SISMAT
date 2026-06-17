@@ -100,10 +100,17 @@ for %%f in (wheels\*.whl) do set HAS_WHEELS=1
 
 if "%HAS_WHEELS%"=="1" (
     echo [INFO] Instalando dependencias OFFLINE a partir de wheels\...
-    .venv\Scripts\python.exe -m pip install --no-index --find-links=wheels -r requirements.txt --quiet
+    .venv\Scripts\python.exe -m pip install --no-index --find-links=wheels -r requirements.txt --quiet --no-build-isolation
 ) else (
-    echo [INFO] Pasta wheels\ vazia. Instalando via internet ^(pode demorar^)...
-    echo [INFO] Se estiver em rede com proxy, isso pode falhar.
+    echo [AVISO] Pasta wheels\ esta vazia.
+    echo.
+    echo Para instalar SEM internet:
+    echo   1. Em um PC com internet, execute na pasta C:\sismat\:
+    echo      pip download -r requirements.txt -d wheels --platform win_amd64 --python-version 3.12 --only-binary=:all:
+    echo   2. Copie a pasta wheels\ para este PC ^(pen drive^)
+    echo   3. Execute instalar.bat novamente
+    echo.
+    echo Tentando instalar VIA INTERNET ^(pode falhar em rede com proxy^)...
     .venv\Scripts\python.exe -m pip install -r requirements.txt --quiet
 )
 if errorlevel 1 (
@@ -121,3 +128,46 @@ if errorlevel 1 (
 )
 echo [OK] Dependencias instaladas.
 
+REM --- 5. Banco ---
+echo [INFO] Inicializando banco de dados...
+.venv\Scripts\python.exe scripts\init_db.py
+if errorlevel 1 (
+    color 0C
+    echo [ERRO] Falha ao inicializar o banco.
+    pause
+    exit /b 1
+)
+
+REM --- 6. Migracao v2 (idempotente) ---
+echo [INFO] Aplicando migracao v2 ^(coluna excluido_em^)...
+.venv\Scripts\python.exe scripts\migrar_v2.py
+
+REM --- 6b. Migracao v3 (assinatura digital) ---
+echo [INFO] Aplicando migracao v3 ^(assinatura digital^)...
+.venv\Scripts\python.exe scripts\migrar_v3.py
+
+REM --- 6c. Migracao v4 (situacao militar + backup) ---
+echo [INFO] Aplicando migracao v4 ^(situacao + backup^)...
+.venv\Scripts\python.exe scripts\migrar_v4.py
+
+REM --- 7. Importacao opcional ---
+if exist "data\csv_legacy\DADOS DO EFETIVO.csv" (
+    echo.
+    echo [INFO] Encontrei CSVs do Access em data\csv_legacy\
+    set /p IMPORTAR="Deseja importar os dados antigos agora? (s/n): "
+    if /i "%IMPORTAR%"=="s" .venv\Scripts\python.exe scripts\importar_legado.py
+)
+
+echo.
+echo ================================================
+echo   INSTALACAO CONCLUIDA
+echo ================================================
+echo.
+echo Para iniciar o sistema, de duplo clique em:
+echo    iniciar.bat
+echo.
+echo Login inicial:
+echo    Usuario: admin
+echo    Senha:   sismat123
+echo.
+pause

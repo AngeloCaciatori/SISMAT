@@ -11,14 +11,8 @@
     overflow: hidden; flex-shrink: 0;
   }
   .avatar-mini img { width: 100%; height: 100%; object-fit: cover; }
-  tr.linha-excluido { opacity: 0.65; font-style: italic; }
-  tr.linha-excluido td:first-child { border-left: 3px solid var(--vermelho); }
-  .countdown {
-    display: inline-block; padding: 2px 6px; border-radius: 10px;
-    font-size: 10px; font-weight: bold; margin-left: 4px;
-  }
-  .countdown.normal { background: #f5e6b3; color: #7d5a00; }
-  .countdown.urgente { background: #f0c5c5; color: #6b1e1e; }
+  tr.linha-inativo { opacity: 0.65; font-style: italic; }
+  tr.linha-inativo td:first-child { border-left: 3px solid var(--vermelho); }
 </style>
 {% endblock %}
 
@@ -27,10 +21,10 @@
 <div class="page-subtitle">Militares cadastrados — Bia C AD/5</div>
 
 <div class="stats-row">
-  <div class="stat-card"><div class="valor">{{ total }}</div><div class="rotulo">Total no Efetivo</div></div>
+  <div class="stat-card"><div class="valor">{{ total }}</div><div class="rotulo">Ativos</div></div>
   <div class="stat-card"><div class="valor">{{ com_foto_count }}</div><div class="rotulo">Com Foto</div></div>
   <div class="stat-card"><div class="valor">{{ com_medidas_count }}</div><div class="rotulo">Com Medidas</div></div>
-  <div class="stat-card"><div class="valor">{{ excluidos_count }}</div><div class="rotulo">Excluídos (≤{{ prazo_exclusao }}d)</div></div>
+  <div class="stat-card"><div class="valor">{{ inativos_count }}</div><div class="rotulo">Não Ativos</div></div>
 </div>
 
 <div class="panel">
@@ -76,7 +70,7 @@
     </thead>
     <tbody>
       {% for m in militares %}
-      <tr class="{% if m.excluido %}linha-excluido{% endif %}">
+      <tr class="{% if m.situacao != 'ATIVO' %}linha-inativo{% endif %}">
         <td>
           <div class="avatar-mini">
             {% if m.foto_path %}
@@ -92,14 +86,12 @@
         <td style="text-align:right;">{{ m.antiguidade if m.antiguidade else '—' }}</td>
         <td style="font-size:12px;">{{ m.om }}</td>
         <td>
-          {% if m.excluido %}
+          {% if m.situacao == 'EXCLUIDO' %}
             <span class="tag tag-vermelho">Excluído</span>
-            {% set rest = info_excluidos.get(m.id) %}
-            {% if rest is not none %}
-            <span class="countdown {{ 'urgente' if rest <= 7 else 'normal' }}">
-              {{ rest }}d
-            </span>
-            {% endif %}
+          {% elif m.situacao == 'TRANSFERIDO' %}
+            <span class="tag tag-amarelo">Transferido</span>
+          {% elif m.situacao == 'LICENCA' %}
+            <span class="tag" style="background:#dce8ff; color:#1e3a5f;">Licença</span>
           {% elif m.medidas %}
             <span class="tag tag-verde">OK</span>
           {% else %}
@@ -127,9 +119,10 @@
 </div>
 
 <div class="info-box" style="margin-top:14px;">
-  <strong>Soft delete com prazo:</strong> militares excluídos podem ser <em>restaurados em até
-  {{ prazo_exclusao }} dias</em>. A coluna Status mostra os dias restantes (vermelho se restam ≤ 7).
-  Após o prazo, admin pode apagar definitivamente — exceto se houver histórico de cautelas.
+  <strong>Situação do efetivo:</strong> militares podem ter situação
+  <em>Ativo</em>, <em>Excluído</em>, <em>Transferido</em> ou <em>Licença</em>.
+  O histórico de cautelas é preservado independentemente da situação.
+  Use "Mostrar inativos" para visualizar militares fora do efetivo ativo.
 </div>
 
 <div style="margin-top: 16px;">

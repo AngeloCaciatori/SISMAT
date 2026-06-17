@@ -1,10 +1,24 @@
 """Application factory do SISMAT."""
 
 from pathlib import Path
-from flask import Flask
+from flask import Flask, g, render_template as _render_template
 
 from config import Config
 from .extensions import db, login_manager, csrf
+
+
+# ---------------------------------------------------------------------------
+# Helper de render: serve template mobile se disponível, senão desktop.
+# Importar nas blueprints que precisam de fallback mobile.
+# ---------------------------------------------------------------------------
+def render_resp(tpl: str, **ctx):
+    """Sempre serve o template desktop.
+    Detecção mobile mantida apenas para o log do servidor.
+    Para reativar templates mobile: descomente o bloco abaixo.
+    """
+    # if g.get("is_mobile"):
+    #     return _render_template([f"mobile/{tpl}", tpl], **ctx)
+    return _render_template(tpl, **ctx)
 
 
 def create_app(config_class=Config) -> Flask:
@@ -27,6 +41,10 @@ def create_app(config_class=Config) -> Flask:
     @login_manager.user_loader
     def load_user(user_id):
         return db.session.get(Operador, int(user_id))
+
+    # Cria tabelas novas que ainda não existem (seguro: não altera existentes)
+    with app.app_context():
+        db.create_all()
 
     # Registra blueprints (rotas)
     from .routes import register_blueprints
@@ -69,6 +87,43 @@ def create_app(config_class=Config) -> Flask:
             "CIDADE_QUARTEL": app.config["CIDADE_QUARTEL"],
             "is_localhost": is_localhost,
             "host_atual": host,
+        }
+
+    # -----------------------------------------------------------------------
+    # Detecção de mobile via User-Agent + cookie de override
+    # -----------------------------------------------------------------------
+    try:
+        from user_agents import parse as ua_parse
+    except ImportError:
+        ua_parse = None
+
+    @app.before_request
+    def detectar_mobile():
+        from flask import request as _req
+        # Detecta se o UA é realmente mobile/tablet
+        if ua_parse:
+            ua = ua_parse(_req.headers.get("User-Agent", ""))
+            ua_is_mobile = ua.is_mobile or ua.is_tablet
+        else:
+            ua_is_mobile = False
+
+        # Cookie de override só vale para dispositivos realmente mobile.
+        # No PC (ua_is_mobile=False), sempre serve desktop — ignora cookie.
+        g.ua_is_mobile = ua_is_mobile  # sempre baseado no UA real, ignora cookie
+        if ua_is_mobile:
+            override = _req.cookies.get("sismat_view")
+            if override == "desktop":
+                g.is_mobile = False
+            else:
+                g.is_mobile = True
+        else:
+            g.is_mobile = False
+
+    @app.context_processor
+    def injetar_mobile():
+        return {
+            "is_mobile": g.get("is_mobile", False),
+            "ua_is_mobile": g.get("ua_is_mobile", False),
         }
 
     # Força troca de senha quando ela é temporária (após reset).

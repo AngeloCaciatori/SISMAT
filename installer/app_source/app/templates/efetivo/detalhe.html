@@ -16,8 +16,8 @@
   .dados-table { width: 100%; font-size: 14px; }
   .dados-table td { padding: 6px 0; vertical-align: top; }
   .dados-table td:first-child { width: 150px; color: var(--texto-claro); font-size: 12px; }
-  .medidas-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 8px; }
-  @media (max-width: 600px) { .medidas-grid { grid-template-columns: repeat(3, 1fr); } }
+  .medidas-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+  @media (max-width: 600px) { .medidas-grid { grid-template-columns: repeat(2, 1fr); } }
   .medida-card { background: var(--bege); padding: 10px; border-radius: 4px; text-align: center; }
   .medida-card .rotulo { font-size: 10px; color: var(--texto-claro); text-transform: uppercase; }
   .medida-card .valor { font-size: 20px; font-weight: bold; color: var(--verde-escuro); margin-top: 2px; }
@@ -32,10 +32,14 @@
   .modal-webcam video, .modal-webcam canvas {
     width: 100%; max-height: 380px; background: #000; border-radius: 4px; display: block;
   }
-  .aviso-excluido {
-    background: #f5e0e0; border-left: 4px solid var(--vermelho);
+  .aviso-situacao {
+    border-left: 4px solid var(--vermelho);
     padding: 12px 16px; border-radius: 4px; margin-bottom: 16px; font-size: 13px;
   }
+  .aviso-situacao.excluido { background: #f5e0e0; border-color: var(--vermelho); }
+  .aviso-situacao.transferido { background: #fef9e4; border-color: #c89000; }
+  .aviso-situacao.licenca { background: #dce8ff; border-color: #1e3a5f; }
+  .modal-situacao { background: white; border-radius: 8px; padding: 20px; max-width: 440px; width: 100%; }
 </style>
 {% endblock %}
 
@@ -44,7 +48,10 @@
   <div>
     <h1 class="page-title">
       {{ militar.graduacao or '—' }} {{ militar.nome_guerra or militar.cpf }}
-      {% if militar.excluido %}<span class="tag tag-vermelho">Excluído</span>{% endif %}
+      {% if militar.situacao == 'EXCLUIDO' %}<span class="tag tag-vermelho">Excluído</span>
+      {% elif militar.situacao == 'TRANSFERIDO' %}<span class="tag tag-amarelo">Transferido</span>
+      {% elif militar.situacao == 'LICENCA' %}<span class="tag" style="background:#dce8ff; color:#1e3a5f;">Licença</span>
+      {% endif %}
     </h1>
     <div class="page-subtitle">
       ID #{{ militar.id }} · {{ militar.om }}
@@ -55,37 +62,21 @@
     <a href="{{ url_for('efetivo.imprimir_cautelas', mil_id=militar.id) }}" target="_blank"
        class="btn btn-primary btn-small">📥 Imprimir Cautelas (FIDU)</a>
     <a href="{{ url_for('efetivo.editar', mil_id=militar.id) }}" class="btn btn-secondary btn-small">✎ Editar</a>
-    {% if militar.excluido %}
-      <form method="POST" action="{{ url_for('efetivo.restaurar', mil_id=militar.id) }}" style="display:inline;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-primary btn-small">↺ Restaurar</button>
-      </form>
-      {% if dias_restantes is not none and dias_restantes == 0 %}
-      <form method="POST" action="{{ url_for('efetivo.excluir_permanente', mil_id=militar.id) }}" style="display:inline;"
-            onsubmit="return confirm('APAGAR DEFINITIVAMENTE? Esta ação NÃO pode ser desfeita.');">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-danger btn-small">🗑 Apagar definitivamente</button>
-      </form>
-      {% endif %}
-    {% else %}
-      <form method="POST" action="{{ url_for('efetivo.excluir', mil_id=militar.id) }}" style="display:inline;"
-            onsubmit="return confirm('Marcar {{ militar.nome_guerra or militar.cpf }} como excluído? Pode ser restaurado por {{ prazo_exclusao }} dias.');">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-danger btn-small">🗑 Excluir</button>
-      </form>
-    {% endif %}
+    <button type="button" class="btn btn-secondary btn-small" onclick="abrirModalSituacao()">⚡ Situação</button>
     <a href="{{ url_for('efetivo.lista') }}" class="btn btn-secondary btn-small">← Lista</a>
   </div>
 </div>
 
-{% if militar.excluido and dias_restantes is not none %}
-<div class="aviso-excluido">
-  <strong>Excluído em {{ militar.excluido_em | data_br }}.</strong>
-  {% if dias_restantes > 0 %}
-    Pode ser restaurado por mais <strong>{{ dias_restantes }} dia(s)</strong> antes de ser apagado definitivamente.
-  {% else %}
-    Prazo de {{ prazo_exclusao }} dias <strong>expirado</strong> — admin pode apagar definitivamente.
-  {% endif %}
+{% if militar.situacao != 'ATIVO' %}
+<div class="aviso-situacao {{ militar.situacao | lower }}">
+  <strong>
+    {% if militar.situacao == 'EXCLUIDO' %}Excluído
+    {% elif militar.situacao == 'TRANSFERIDO' %}Transferido
+    {% elif militar.situacao == 'LICENCA' %}Licença
+    {% else %}{{ militar.situacao }}{% endif %}
+  </strong>
+  {% if militar.situacao_em %} em {{ militar.situacao_em | data_br }}{% endif %}
+  {% if militar.situacao_motivo %} — <em>{{ militar.situacao_motivo }}</em>{% endif %}
 </div>
 {% endif %}
 
@@ -147,35 +138,93 @@
     </div>
   </div>
 
-  <h4 style="color:var(--verde-escuro); margin: 24px 0 8px; font-size:13px; text-transform:uppercase; border-top:1px solid var(--borda); padding-top: 16px;">📐 Medidas Corporais</h4>
+  <h4 style="color:var(--verde-escuro); margin: 24px 0 8px; font-size:13px; text-transform:uppercase; border-top:1px solid var(--borda); padding-top: 16px;">📐 Fardamento / Calçado</h4>
   {% set m = militar.medidas %}
+  {# Grade de exibição usa 4 colunas (2 para tamanhos + 2 para numeros) #}
+  {% set _ms = 'display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:8px;' %}
   <form method="POST" action="{{ url_for('efetivo.atualizar_medidas', mil_id=militar.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {# ── Modo leitura ─────────────────────────────────────── #}
     <div id="medidas-display" {% if not m %}style="display:none;"{% endif %}>
-      <div class="medidas-grid">
-        <div class="medida-card"><div class="rotulo">Ombro</div><div class="valor {% if not m or not m.ombro %}vazio{% endif %}">{{ m.ombro if m and m.ombro else '—' }}</div></div>
-        <div class="medida-card"><div class="rotulo">Cintura</div><div class="valor {% if not m or not m.cintura %}vazio{% endif %}">{{ m.cintura if m and m.cintura else '—' }}</div></div>
-        <div class="medida-card"><div class="rotulo">Quadril</div><div class="valor {% if not m or not m.quadril %}vazio{% endif %}">{{ m.quadril if m and m.quadril else '—' }}</div></div>
-        <div class="medida-card"><div class="rotulo">Cabeça</div><div class="valor {% if not m or not m.cabeca %}vazio{% endif %}">{{ m.cabeca if m and m.cabeca else '—' }}</div></div>
-        <div class="medida-card"><div class="rotulo">Pé</div><div class="valor {% if not m or not m.pe %}vazio{% endif %}">{{ m.pe if m and m.pe else '—' }}</div></div>
-        <div class="medida-card"><div class="rotulo">Braço</div><div class="valor {% if not m or not m.braco %}vazio{% endif %}">{{ m.braco if m and m.braco else '—' }}</div></div>
+      <div style="{{ _ms }}">
+        <div class="medida-card">
+          <div class="rotulo">Camisa / Gandola</div>
+          <div class="valor {% if not m or not m.camisa %}vazio{% endif %}">{{ m.camisa if m and m.camisa else '—' }}</div>
+          <div style="font-size:9px; color:var(--texto-claro); margin-top:2px;">Camisa · Gandola · Regata</div>
+        </div>
+        <div class="medida-card">
+          <div class="rotulo">Calça / Shorts</div>
+          <div class="valor {% if not m or not m.calca %}vazio{% endif %}">{{ m.calca if m and m.calca else '—' }}</div>
+          <div style="font-size:9px; color:var(--texto-claro); margin-top:2px;">Calça · Shorts TFM</div>
+        </div>
+        <div class="medida-card">
+          <div class="rotulo">Cabeça (cm)</div>
+          <div class="valor {% if not m or not m.cabeca %}vazio{% endif %}">{{ m.cabeca if m and m.cabeca else '—' }}</div>
+          <div style="font-size:9px; color:var(--texto-claro); margin-top:2px;">Boina · Gorro</div>
+        </div>
+        <div class="medida-card">
+          <div class="rotulo">Pé (nº calçado)</div>
+          <div class="valor {% if not m or not m.pe %}vazio{% endif %}">{{ m.pe if m and m.pe else '—' }}</div>
+          <div style="font-size:9px; color:var(--texto-claro); margin-top:2px;">Coturno · Tênis · Chinelo</div>
+        </div>
       </div>
       <div style="text-align:right; margin-top:8px;">
-        <button type="button" class="btn btn-secondary btn-small" onclick="editarMedidas()">✎ Atualizar medidas</button>
+        <button type="button" class="btn btn-secondary btn-small" onclick="editarMedidas()">✎ Atualizar fardamento</button>
       </div>
     </div>
+
+    {# ── Modo edição ──────────────────────────────────────── #}
+    {% set tamanhos = ['PP','P','M','G','GG','XG'] %}
     <div id="medidas-edit" {% if m %}style="display:none;"{% endif %}>
-      <div class="medidas-grid">
-        <div class="medida-card"><div class="rotulo">Ombro</div><input type="text" name="ombro" value="{{ m.ombro if m else '' }}" style="width:100%; margin-top:4px; font-size:14px; text-align:center;"></div>
-        <div class="medida-card"><div class="rotulo">Cintura</div><input type="text" name="cintura" value="{{ m.cintura if m else '' }}" style="width:100%; margin-top:4px; font-size:14px; text-align:center;"></div>
-        <div class="medida-card"><div class="rotulo">Quadril</div><input type="text" name="quadril" value="{{ m.quadril if m else '' }}" style="width:100%; margin-top:4px; font-size:14px; text-align:center;"></div>
-        <div class="medida-card"><div class="rotulo">Cabeça</div><input type="text" name="cabeca" value="{{ m.cabeca if m else '' }}" style="width:100%; margin-top:4px; font-size:14px; text-align:center;"></div>
-        <div class="medida-card"><div class="rotulo">Pé</div><input type="text" name="pe" value="{{ m.pe if m else '' }}" style="width:100%; margin-top:4px; font-size:14px; text-align:center;"></div>
-        <div class="medida-card"><div class="rotulo">Braço</div><input type="text" name="braco" value="{{ m.braco if m else '' }}" style="width:100%; margin-top:4px; font-size:14px; text-align:center;"></div>
+      <div style="{{ _ms }}">
+
+        {# Camisa / Gandola — select #}
+        <div class="medida-card">
+          <div class="rotulo">Camisa / Gandola</div>
+          <div style="font-size:9px; color:var(--texto-claro); margin-bottom:4px;">Camisa · Gandola · Regata</div>
+          <select name="camisa" style="width:100%; font-size:14px; text-align:center; padding:4px; border:1px solid var(--borda); border-radius:4px;">
+            <option value="">—</option>
+            {% for t in tamanhos %}
+            <option value="{{ t }}" {% if m and m.camisa == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {# Calça / Shorts — select #}
+        <div class="medida-card">
+          <div class="rotulo">Calça / Shorts</div>
+          <div style="font-size:9px; color:var(--texto-claro); margin-bottom:4px;">Calça · Shorts TFM</div>
+          <select name="calca" style="width:100%; font-size:14px; text-align:center; padding:4px; border:1px solid var(--borda); border-radius:4px;">
+            <option value="">—</option>
+            {% for t in tamanhos %}
+            <option value="{{ t }}" {% if m and m.calca == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {# Cabeça — número #}
+        <div class="medida-card">
+          <div class="rotulo">Cabeça (cm)</div>
+          <div style="font-size:9px; color:var(--texto-claro); margin-bottom:4px;">Boina · Gorro · 50–70</div>
+          <input type="number" name="cabeca" value="{{ m.cabeca if m else '' }}"
+                 min="50" max="70" step="1" placeholder="ex: 57"
+                 style="width:100%; font-size:14px; text-align:center; padding:4px; border:1px solid var(--borda); border-radius:4px;">
+        </div>
+
+        {# Pé — número #}
+        <div class="medida-card">
+          <div class="rotulo">Pé (nº calçado)</div>
+          <div style="font-size:9px; color:var(--texto-claro); margin-bottom:4px;">Coturno · Tênis · 30–50</div>
+          <input type="number" name="pe" value="{{ m.pe if m else '' }}"
+                 min="30" max="50" step="1" placeholder="ex: 42"
+                 style="width:100%; font-size:14px; text-align:center; padding:4px; border:1px solid var(--borda); border-radius:4px;">
+        </div>
+
       </div>
       <div style="text-align:right; margin-top:8px; display:flex; justify-content:flex-end; gap:6px;">
         {% if m %}<button type="button" class="btn btn-secondary btn-small" onclick="cancelarMedidas()">Cancelar</button>{% endif %}
-        <button type="submit" class="btn btn-primary btn-small">Salvar Medidas</button>
+        <button type="submit" class="btn btn-primary btn-small">Salvar</button>
       </div>
     </div>
   </form>
@@ -201,6 +250,83 @@
     Nenhuma cautela ativa para este militar.
   </div>
   {% endif %}
+
+  <details style="margin-top: 24px; border-top: 1px solid var(--borda); padding-top: 16px;">
+    <summary style="cursor: pointer; color: var(--verde-escuro); font-size: 13px; font-weight: bold; text-transform: uppercase; user-select: none; list-style: none; display: flex; align-items: center; gap: 6px;">
+      <span id="hist-arrow" style="display:inline-block; transition: transform 0.2s;">▶</span>
+      📂 Histórico de Cautelas Devolvidas ({{ cautelas_devolvidas.total }})
+    </summary>
+    <script>
+      document.querySelector('details').addEventListener('toggle', function(e) {
+        document.getElementById('hist-arrow').style.transform = this.open ? 'rotate(90deg)' : '';
+      });
+    </script>
+    <div style="margin-top: 12px;">
+    {% if cautelas_devolvidas.items %}
+    <table>
+      <thead><tr><th>Nº</th><th>Itens</th><th>Cautela</th><th>Devolvida em</th></tr></thead>
+      <tbody>
+        {% for c in cautelas_devolvidas.items %}
+        <tr>
+          <td><a href="{{ url_for('cautelas.detalhe', cautela_id=c.id) }}" style="color:var(--verde-escuro);">{{ c.numero }}</a></td>
+          <td style="font-size:12px;">{% for item in c.itens %}{{ item.quantidade }}× {{ item.material.nomenclatura }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+          <td>{{ c.data_cautela | data_br }}</td>
+          <td>{{ c.devolvida_em | data_br if c.devolvida_em else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if cautelas_devolvidas.pages > 1 %}
+    <div style="display:flex; gap:8px; align-items:center; margin-top:12px; font-size:13px; flex-wrap:wrap;">
+      {% if cautelas_devolvidas.has_prev %}
+        <a href="{{ url_for('efetivo.detalhe', mil_id=militar.id, hist_page=cautelas_devolvidas.prev_num) }}#historico"
+           class="btn btn-secondary btn-small">← Anterior</a>
+      {% endif %}
+      <span style="color:var(--texto-claro);">
+        Página {{ cautelas_devolvidas.page }} de {{ cautelas_devolvidas.pages }}
+        ({{ cautelas_devolvidas.total }} cautelas)
+      </span>
+      {% if cautelas_devolvidas.has_next %}
+        <a href="{{ url_for('efetivo.detalhe', mil_id=militar.id, hist_page=cautelas_devolvidas.next_num) }}#historico"
+           class="btn btn-secondary btn-small">Próxima →</a>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div style="padding: 12px; background: var(--areia); border-radius: 4px; color: var(--texto-claro); text-align: center; font-size: 13px;">
+      Nenhuma cautela devolvida registrada.
+    </div>
+    {% endif %}
+    </div>
+  </details>
+</div>
+
+<div id="modal-situacao" class="modal-overlay hidden">
+  <div class="modal-situacao">
+    <h3 style="color:var(--verde-escuro); margin-bottom:16px;">⚡ Alterar Situação</h3>
+    <form method="POST" action="{{ url_for('efetivo.mudar_situacao', mil_id=militar.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="margin-bottom:12px;">
+        <label style="font-size:13px; color:var(--texto-claro); display:block; margin-bottom:4px;">Nova Situação</label>
+        <select name="situacao" class="search-box" style="width:100%;" required>
+          <option value="ATIVO"       {% if militar.situacao == 'ATIVO'       %}selected{% endif %}>Ativo</option>
+          <option value="EXCLUIDO"    {% if militar.situacao == 'EXCLUIDO'    %}selected{% endif %}>Excluído</option>
+          <option value="TRANSFERIDO" {% if militar.situacao == 'TRANSFERIDO' %}selected{% endif %}>Transferido</option>
+          <option value="LICENCA"     {% if militar.situacao == 'LICENCA'     %}selected{% endif %}>Licença</option>
+        </select>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:13px; color:var(--texto-claro); display:block; margin-bottom:4px;">Motivo (opcional)</label>
+        <input type="text" name="motivo" value="{{ militar.situacao_motivo or '' }}"
+               placeholder="Ex.: Transferência para 5ª Brigada"
+               style="width:100%; padding:8px; border:1px solid var(--borda); border-radius:4px; font-size:13px;">
+      </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="fecharModalSituacao()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <div id="modal-webcam" class="modal-overlay hidden">
@@ -224,6 +350,13 @@
 
 <script>
 let stream = null;
+
+function abrirModalSituacao() {
+  document.getElementById('modal-situacao').classList.remove('hidden');
+}
+function fecharModalSituacao() {
+  document.getElementById('modal-situacao').classList.add('hidden');
+}
 
 function editarMedidas() {
   document.getElementById('medidas-display').style.display = 'none';

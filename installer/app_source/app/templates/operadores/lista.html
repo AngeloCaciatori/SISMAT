@@ -27,6 +27,7 @@
         <th>Seção</th>
         <th>Nível</th>
         <th>Status</th>
+        <th>Assinatura</th>
         <th>Último acesso</th>
         <th>Ações</th>
       </tr>
@@ -59,12 +60,30 @@
             <span class="tag tag-verde">Ativo</span>
           {% endif %}
         </td>
+        <td>
+          {% if op.is_admin %}
+            <span style="color:#aaa; font-size:12px;">N/A</span>
+          {% elif op.assinatura_base64 %}
+            <span class="tag tag-verde" title="Cadastrada em {{ op.assinatura_cadastrada_em | data_br if op.assinatura_cadastrada_em else '—' }}">
+              ✓ Cadastrada
+            </span>
+          {% else %}
+            <span class="tag tag-vermelho">Não cadastrada</span>
+          {% endif %}
+        </td>
         <td>{{ op.ultimo_acesso | data_br if op.ultimo_acesso else '—' }}</td>
         <td>
           <a href="{{ url_for('operadores.editar', op_id=op.id) }}"
              class="btn btn-small btn-secondary">Editar</a>
           <a href="{{ url_for('operadores.resetar_senha', op_id=op.id) }}"
              class="btn btn-small btn-secondary">Resetar senha</a>
+          {% if not op.is_admin and current_user.is_admin %}
+          <a href="{{ url_for('assinatura.perfil_qr', operador_id=op.id) }}"
+             class="btn btn-small btn-primary"
+             title="{{ 'Atualizar assinatura' if op.assinatura_base64 else 'Cadastrar assinatura' }}">
+            🖋 {{ 'Atualizar' if op.assinatura_base64 else 'Autorizar' }}
+          </a>
+          {% endif %}
           {% if op.id != current_user.id and op.ativo %}
           <form method="POST" action="{{ url_for('operadores.remover', op_id=op.id) }}"
                 style="display:inline;"

@@ -11,10 +11,6 @@
   <form method="POST" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-    <div class="info-box" style="margin-bottom:16px;">
-      Apenas <strong>CPF</strong> é obrigatório. Os demais campos podem ser preenchidos depois.
-    </div>
-
     <div class="form-group">
       <label for="cpf">CPF <span style="color:var(--vermelho);">*</span></label>
       <input type="text" name="cpf" id="cpf" required maxlength="14"
@@ -25,8 +21,8 @@
 
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
       <div class="form-group">
-        <label for="graduacao">Graduação</label>
-        <select name="graduacao" id="graduacao">
+        <label for="graduacao">Graduação <span style="color:var(--vermelho);">*</span></label>
+        <select name="graduacao" id="graduacao" required>
           <option value="">— Selecione —</option>
           {% for g in graduacoes %}
           <option value="{{ g }}" {% if militar and militar.graduacao == g %}selected{% endif %}>{{ g }}</option>
@@ -34,16 +30,16 @@
         </select>
       </div>
       <div class="form-group">
-        <label for="nome_guerra">Nome de Guerra</label>
-        <input type="text" name="nome_guerra" id="nome_guerra" maxlength="50"
+        <label for="nome_guerra">Nome de Guerra <span style="color:var(--vermelho);">*</span></label>
+        <input type="text" name="nome_guerra" id="nome_guerra" required maxlength="50"
                value="{{ militar.nome_guerra if militar else '' }}"
                placeholder="Ex.: FONTES">
       </div>
     </div>
 
     <div class="form-group">
-      <label for="nome_completo">Nome Completo</label>
-      <input type="text" name="nome_completo" id="nome_completo" maxlength="200"
+      <label for="nome_completo">Nome Completo <span style="color:var(--vermelho);">*</span></label>
+      <input type="text" name="nome_completo" id="nome_completo" required maxlength="200"
              value="{{ militar.nome_completo if militar else '' }}"
              placeholder="Nome completo do militar">
     </div>
@@ -74,8 +70,8 @@
                value="{{ militar.om if militar else 'Bia C AD/5' }}">
       </div>
       <div class="form-group">
-        <label for="telefone1">Telefone 1</label>
-        <input type="text" name="telefone1" id="telefone1" maxlength="30"
+        <label for="telefone1">Telefone 1 <span style="color:var(--vermelho);">*</span></label>
+        <input type="text" name="telefone1" id="telefone1" required maxlength="30"
                value="{{ militar.telefone1 if militar else '' }}"
                placeholder="(00) 00000-0000">
       </div>
@@ -109,9 +105,10 @@
 </div>
 
 {% if militar %}
-<div class="info-box" style="margin-top:16px;">
-  <strong>ID #{{ militar.id }}</strong> · cadastrado em {{ militar.criado_em | data_br }}
-  · última edição em {{ militar.atualizado_em | data_br }}
+<div class="info-box" style="margin-top:16px; font-size:12px;">
+  <strong>ID #{{ militar.id }}</strong>
+  · cadastrado em {{ militar.criado_em | data_br }}{% if log_criado %} por <strong>{{ log_criado }}</strong>{% endif %}
+  · última edição em {{ militar.atualizado_em | data_br }}{% if log_editado %} por <strong>{{ log_editado }}</strong>{% endif %}
 </div>
 {% endif %}
 {% endblock %}

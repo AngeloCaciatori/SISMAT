@@ -1,7 +1,7 @@
 LICENÇA DE USO — SISMAT
 Sistema de Controle de Material
 
-Copyright (c) 2025 Bateria de Comando da AD/5
+Copyright (c) 2026 Bateria de Comando da AD/5
 Subtenência / Reserva de Material
 Curitiba — PR
 

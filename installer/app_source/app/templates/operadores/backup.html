@@ -2,33 +2,95 @@
 {% block title %}Backup do Banco{% endblock %}
 
 {% block content %}
-<h1 class="page-title">💾 Backup do Banco</h1>
+<h1 class="page-title">💾 Backup do Sistema</h1>
 <div class="page-subtitle">Cópias de segurança do SISMAT — proteção contra perda de dados</div>
 
-<div class="info-box">
-  <strong>Por que isso importa:</strong> todo o sistema (172 militares, 134 materiais, cautelas,
-  fotos, etc.) vive no arquivo <code>instance/sismat.db</code>. Se o computador for formatado ou
-  a pasta apagada, tudo vai junto. Backups regulares são a única proteção.
+{# ── Banco em uso ───────────────────────────────────────────────── #}
+<div class="panel" style="margin-bottom:16px; border-left:4px solid var(--color-primary);">
+  <div class="panel-header" style="padding-bottom:8px;">
+    <h3 style="margin:0;">🗄️ Banco de dados em uso</h3>
+  </div>
+  <div style="padding:12px 16px; display:flex; flex-wrap:wrap; gap:24px; align-items:center;">
+    <div>
+      <div style="font-size:11px; color:var(--texto-claro); text-transform:uppercase; letter-spacing:.05em;">Arquivo</div>
+      <code style="font-size:13px; word-break:break-all;">{{ db_info.path }}</code>
+    </div>
+    <div>
+      <div style="font-size:11px; color:var(--texto-claro); text-transform:uppercase; letter-spacing:.05em;">Tamanho</div>
+      <strong>
+        {% if db_info.tamanho_kb >= 1024 %}
+          {{ '%.2f'|format(db_info.tamanho_kb / 1024) }} MB
+        {% else %}
+          {{ '%.1f'|format(db_info.tamanho_kb) }} KB
+        {% endif %}
+      </strong>
+    </div>
+    <div>
+      <div style="font-size:11px; color:var(--texto-claro); text-transform:uppercase; letter-spacing:.05em;">Última modificação</div>
+      <strong>{{ db_info.modificado.strftime('%d/%m/%Y %H:%M') if db_info.modificado else '—' }}</strong>
+    </div>
+    <div>
+      {% if db_info.existe %}
+        <span class="tag tag-verde">✓ Ativo</span>
+      {% else %}
+        <span class="tag tag-vermelho">✗ Não encontrado</span>
+      {% endif %}
+    </div>
+  </div>
 </div>
 
-<div class="stats-row">
-  <div class="stat-card">
-    <div class="valor">{{ '%.1f'|format(tamanho_atual) }} KB</div>
-    <div class="rotulo">Banco Atual</div>
-  </div>
+{# ── Stats + ações ──────────────────────────────────────────────── #}
+<div class="stats-row" style="margin-bottom:16px;">
   <div class="stat-card">
     <div class="valor">{{ total }}</div>
-    <div class="rotulo">Backups Salvos</div>
+    <div class="rotulo">Backups salvos</div>
   </div>
 </div>
 
+<div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px;">
+  <form method="POST" action="{{ url_for('operadores.backup_criar') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-primary">💾 Fazer backup agora</button>
+  </form>
+
+  <button type="button" class="btn btn-secondary"
+          onclick="document.getElementById('form-importar').style.display =
+                   document.getElementById('form-importar').style.display === 'none' ? 'block' : 'none';">
+    📂 Importar banco externo
+  </button>
+</div>
+
+{# ── Importar banco externo ─────────────────────────────────────── #}
+<div id="form-importar" style="display:none; margin-bottom:18px;">
+  <div class="panel" style="border-left:4px solid var(--color-accent);">
+    <div class="panel-header"><h3>📂 Importar banco externo</h3></div>
+    <div style="padding:14px 16px;">
+      <p style="margin:0 0 10px; font-size:13px;">
+        Envie um arquivo <strong>.zip</strong> (backup SISMAT) ou <strong>.db</strong> (SQLite direto).
+        O banco atual será <strong>substituído</strong> pelo importado.
+      </p>
+      <div class="info-box" style="background:rgba(220,53,69,0.08); border-left-color:var(--danger); margin-bottom:12px; font-size:12px;">
+        ⚠ <strong>Atenção:</strong> todos os dados atuais serão substituídos pelos do arquivo importado.
+        Faça um backup antes de continuar.
+      </div>
+      <form method="POST" action="{{ url_for('operadores.backup_importar') }}"
+            enctype="multipart/form-data"
+            onsubmit="return confirm('Substituir o banco atual pelos dados do arquivo selecionado?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <input type="file" name="arquivo" accept=".zip,.db" required
+                 style="font-size:13px; padding:6px; border:1px solid var(--borda); border-radius:4px; flex:1; min-width:220px;">
+          <button type="submit" class="btn btn-danger">📥 Importar e restaurar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ── Lista de backups ───────────────────────────────────────────── #}
 <div class="panel">
   <div class="panel-header">
     <h3>Backups disponíveis</h3>
-    <form method="POST" action="{{ url_for('operadores.backup_criar') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-primary btn-small">💾 Fazer backup agora</button>
-    </form>
   </div>
 
   {% if arquivos %}
@@ -46,12 +108,25 @@
       <tr>
         <td style="font-family:'Courier New',monospace; font-size:12px;">{{ a.nome }}</td>
         <td>{{ a.criado.strftime('%d/%m/%Y %H:%M') }}</td>
-        <td style="text-align:right;">{{ '%.1f'|format(a.tamanho_kb) }} KB</td>
+        <td style="text-align:right;">
+          {% if a.tamanho_kb >= 1024 %}
+            {{ '%.2f'|format(a.tamanho_kb / 1024) }} MB
+          {% else %}
+            {{ '%.1f'|format(a.tamanho_kb) }} KB
+          {% endif %}
+        </td>
         <td class="table-actions">
           <a href="{{ url_for('operadores.backup_baixar', nome=a.nome) }}"
              class="btn btn-small btn-secondary">📥 Baixar</a>
+          <form method="POST" action="{{ url_for('operadores.backup_restaurar', nome=a.nome) }}"
+                style="display:inline;"
+                onsubmit="return confirm('Restaurar o banco a partir de \'{{ a.nome }}\'?\n\nOs dados atuais serão substituídos.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-small btn-secondary">↩ Restaurar</button>
+          </form>
           <form method="POST" action="{{ url_for('operadores.backup_remover', nome=a.nome) }}"
-                style="display:inline;" onsubmit="return confirm('Remover backup {{ a.nome }}?');">
+                style="display:inline;"
+                onsubmit="return confirm('Remover backup {{ a.nome }}?');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-small btn-danger">Remover</button>
           </form>
@@ -67,20 +142,74 @@
   {% endif %}
 
   <div style="padding:10px 16px; font-size:12px; color:var(--texto-claro); border-top:1px solid var(--borda); background:var(--areia);">
-    Pasta: <code>{{ pasta }}</code>
+    Pasta primária: <code>{{ pasta }}</code>
+    &nbsp;·&nbsp;
+    Cópia automática: <code>Documentos\SISMAT\</code>
   </div>
 </div>
 
+{# ── Log de backups automáticos ─────────────────────────────────── #}
+{% if ultimos_logs %}
+<div class="panel" style="margin-top:16px;">
+  <div class="panel-header"><h3>📋 Log de Backups Automáticos</h3></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Data/Hora</th>
+        <th>Arquivo</th>
+        <th>Tipo</th>
+        <th style="text-align:right;">Tamanho</th>
+        <th>Local</th>
+        <th>Documentos</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in ultimos_logs %}
+      <tr>
+        <td style="font-size:12px; font-family:'Courier New',monospace;">
+          {{ log.criado_em.strftime('%d/%m/%Y %H:%M') if log.criado_em else '—' }}
+        </td>
+        <td style="font-size:11px; font-family:'Courier New',monospace;">{{ log.arquivo }}</td>
+        <td><span class="tag tag-azul" style="font-size:10px;">{{ log.tipo }}</span></td>
+        <td style="text-align:right; font-size:12px;">
+          {% if log.tamanho_kb %}{{ '%.1f'|format(log.tamanho_kb) }} KB{% else %}—{% endif %}
+        </td>
+        <td>
+          {% if log.ok %}
+            <span class="tag tag-verde" style="font-size:10px;">✓ OK</span>
+          {% else %}
+            <span class="tag tag-vermelho" style="font-size:10px;" title="{{ log.erro_msg or '' }}">✗ Falha</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if log.copia_ok is none %}
+            <span style="color:var(--texto-claro); font-size:11px;">—</span>
+          {% elif log.copia_ok %}
+            <span class="tag tag-verde" style="font-size:10px;" title="{{ log.destino_docs or '' }}">✓ Copiado</span>
+          {% else %}
+            <span class="tag tag-vermelho" style="font-size:10px;" title="{{ log.copia_erro or '' }}">✗ Falha</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{# ── Info agendamento ───────────────────────────────────────────── #}
 <div class="info-box" style="margin-top:14px; background:rgba(201,162,39,0.12); border-left-color:var(--verde-claro);">
-  <strong>💡 Recomendações:</strong>
-  <ol style="margin: 8px 0 0 20px; font-size: 13px;">
-    <li>Faça <strong>backup mensal automático</strong> rodando o arquivo <code>agendar_backup.bat</code>
-        (clique-duplo) — o Windows passa a fazer backup todo dia 1 do mês às 03:00.</li>
-    <li>Para máxima segurança, configure a pasta de backups para sincronizar com nuvem
-        (OneDrive, Google Drive, Dropbox). Assim o backup vai automaticamente para fora do PC.</li>
-    <li>Para restaurar um backup, basta <em>copiar o arquivo .db sobre o sismat.db</em> com o
-        sistema parado (feche o navegador e o iniciar.bat antes).</li>
-  </ol>
+  <strong>💡 Agendamento automático (Windows — rodar como admin):</strong>
+  <ul style="margin: 8px 0 0 20px; font-size: 12px; font-family:'Courier New',monospace; line-height:1.8;">
+    <li>Diário às 15:00 — <code>scripts\backup_diario.bat</code></li>
+    <li>Semanal (seg) às 15:30 — <code>scripts\backup_semanal.bat</code></li>
+    <li>Mensal (dia 1) às 15:45 — <code>scripts\backup_mensal.bat</code></li>
+    <li>Anual (jan 1) às 15:45 — <code>scripts\backup_anual.bat</code></li>
+  </ul>
+  <div style="margin-top:8px; font-size:12px;">
+    O <code>configurar.bat</code> agenda tudo automaticamente. Para restaurar manualmente:
+    use o botão <strong>↩ Restaurar</strong> ao lado de qualquer backup, ou importe um arquivo externo.
+  </div>
 </div>
 
 <div style="margin-top: 16px;">
