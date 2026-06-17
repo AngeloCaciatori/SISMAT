@@ -9,3 +9,10 @@ app/static/uploads/militares/*
 !app/static/uploads/militares/.gitkeep
 .DS_Store
 *.log
+
+# Arquivos de contexto privado do Claude (NUNCA publicar)
+_CONTEXTO_CLAUDE.md
+DECISOES.md
+SKILL_ATUALIZADA.md
+D-*.md
+configurar.log
