@@ -125,16 +125,6 @@ sismat/
 ├── run.py                 # Inicia o servidor
 └── requirements.txt
 ```
-
-## Próximos passos (próximas sessões)
-
-1. CRUD do Efetivo (lista, cadastro, edição, foto, medidas)
-2. CRUD de Material (com Prateleira e SISCOFIS)
-3. Cautelas (criação, devolução, ficha FIDU)
-4. Editor de documentos com exportação PDF
-5. Importação de dados do Access (CSVs em `data/csv_legacy/`)
-6. CRUD de Operadores
-
 ## Backup
 
 O banco inteiro fica em `instance/sismat.db`. Para fazer backup, basta copiar
